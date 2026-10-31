@@ -9,8 +9,6 @@
 ![Problems](https://img.shields.io/badge/problems-100-1f6b5a)
 ![Core](https://img.shields.io/badge/core-41-2f7a3c)
 ![Extended](https://img.shields.io/badge/extended-59-7c848a)
-![Solved](https://img.shields.io/badge/solved-0%2F100-a2620d)
-![Language](https://img.shields.io/badge/language-TypeScript-3178c6)
 
 </div>
 
