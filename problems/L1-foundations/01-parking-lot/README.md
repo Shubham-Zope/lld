@@ -10,8 +10,8 @@ Design the software for a multi-floor parking lot. Vehicles of different sizes e
 |---|---|
 | [REQUIREMENTS.md](./REQUIREMENTS.md) | Full spec: FR, NFR, constraints, edge cases, expected behaviour |
 | [DESIGN.md](./DESIGN.md) | Your class diagram, patterns, SOLID check, trade-offs |
-| `src/main/java/com/lld/parkinglot/` | Implementation |
-| `src/test/java/com/lld/parkinglot/` | JUnit 5 tests, one per FR and edge case at minimum |
+| `src/` | Implementation |
+| `tests/` | Unit tests, one per FR and edge case at minimum |
 
 ## Status
 
@@ -29,5 +29,6 @@ Design the software for a multi-floor parking lot. Vehicles of different sizes e
 ## Run
 
 ```bash
-./gradlew :parking-lot:test
+# fill in for your language, e.g.
+# npm test -- parking-lot
 ```
