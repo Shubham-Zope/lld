@@ -377,7 +377,7 @@ cd lld
 ./gradlew projects
 ```
 
-Requirements: JDK 21. The Gradle wrapper downloads Gradle on first run; no global install needed.
+Requirements: JDK 21 or newer. The Gradle wrapper downloads Gradle on first run; no global install needed.
 
 Each problem is an independent Gradle subproject with the standard Maven layout, so you can open the repo root in IntelliJ IDEA and every problem appears as a module.
 
