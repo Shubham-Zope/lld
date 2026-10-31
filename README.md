@@ -365,7 +365,7 @@ Every mock interview is scored out of 100. Full rubric: [`docs/evaluation-rubric
 
 ```bash
 git clone https://github.com/<your-username>/lld.git
-cd lld-mastery
+cd lld
 
 # run every problem's tests
 ./gradlew test
