@@ -9,6 +9,7 @@
 ![Problems](https://img.shields.io/badge/problems-100-1f6b5a)
 ![Core](https://img.shields.io/badge/core-41-2f7a3c)
 ![Extended](https://img.shields.io/badge/extended-59-7c848a)
+![Solved](https://img.shields.io/badge/solved-0%2F100-a2620d)
 ![Java](https://img.shields.io/badge/Java-21-b07219)
 ![JUnit](https://img.shields.io/badge/tests-JUnit%205-25a162)
 ![Gradle](https://img.shields.io/badge/build-Gradle-02303a)
@@ -363,7 +364,7 @@ Every mock interview is scored out of 100. Full rubric: [`docs/evaluation-rubric
 ## Running the code
 
 ```bash
-git clone https://github.com/<your-username>/lld.git
+git clone https://github.com/<your-username>/lld-mastery.git
 cd lld-mastery
 
 # run every problem's tests

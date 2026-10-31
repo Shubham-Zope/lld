@@ -1,0 +1,6013 @@
+{
+  "levels": [
+    {
+      "id": 1,
+      "key": "L1",
+      "name": "Foundations",
+      "target": "Junior / SDE1",
+      "weeks": "Weeks 1-2",
+      "focus": "Classes, objects, encapsulation, composition over inheritance, clean interfaces, enums, basic validation. Model the nouns and verbs correctly before reaching for patterns.",
+      "exit": "You can turn a vague prompt into entities, relationships and a working in-memory implementation in 45 minutes, with no god classes.",
+      "concepts": [
+        "Encapsulation",
+        "Abstraction",
+        "Inheritance vs composition",
+        "Polymorphism",
+        "Enums for closed sets",
+        "Single Responsibility",
+        "Value objects",
+        "UML class diagrams"
+      ]
+    },
+    {
+      "id": 2,
+      "key": "L2",
+      "name": "Design Patterns",
+      "target": "SDE1 → SDE2",
+      "weeks": "Weeks 3-5",
+      "focus": "Recognise when a problem is really a State, Strategy, Observer, Chain of Responsibility, Decorator, Composite, Factory or Builder problem, and apply the pattern without over-engineering.",
+      "exit": "You pick a pattern because a requirement forces it, and you can name the requirement that would make you remove it.",
+      "concepts": [
+        "Gang of Four patterns",
+        "Open/Closed",
+        "Liskov Substitution",
+        "Interface Segregation",
+        "Dependency Inversion",
+        "State machines",
+        "Pattern trade-offs"
+      ]
+    },
+    {
+      "id": 3,
+      "key": "L3",
+      "name": "Real-World Systems",
+      "target": "SDE2",
+      "weeks": "Weeks 6-9",
+      "focus": "Multi-actor business domains with workflows, pricing, search, and the first taste of concurrency (seat locking, double booking). Layering: domain, service, repository.",
+      "exit": "You separate domain model from services and storage, handle concurrent writes to shared resources, and keep the design open for the obvious next feature.",
+      "concepts": [
+        "Layered architecture",
+        "Repository pattern",
+        "Service layer",
+        "Optimistic vs pessimistic locking",
+        "Idempotency basics",
+        "Domain events",
+        "Aggregates"
+      ]
+    },
+    {
+      "id": 4,
+      "key": "L4",
+      "name": "Concurrency & Infrastructure Components",
+      "target": "SDE2 → SDE3",
+      "weeks": "Weeks 10-13",
+      "focus": "Build the components other systems sit on: rate limiters, thread pools, brokers, caches, pools, circuit breakers. Thread safety, back-pressure and failure handling become primary requirements.",
+      "exit": "You can argue the correctness of your locking strategy, explain memory/time complexity, and show how the component degrades under load.",
+      "concepts": [
+        "Thread safety",
+        "Locks, CAS, atomics",
+        "Producer-consumer",
+        "Back-pressure",
+        "Bounded queues",
+        "Time-based algorithms",
+        "Fail-fast vs fail-safe",
+        "Testability with injected clocks"
+      ]
+    },
+    {
+      "id": 5,
+      "key": "L5",
+      "name": "Staff-Level Domains",
+      "target": "SDE3 / Staff",
+      "weeks": "Weeks 14-17",
+      "focus": "Money, matching engines, rule engines and workflows where correctness is non-negotiable. Idempotency, auditability, ledgers, versioning and extensibility by configuration rather than code changes.",
+      "exit": "Your design survives retries, partial failures and new business rules without a rewrite, and you can defend every invariant.",
+      "concepts": [
+        "Double-entry ledgers",
+        "Idempotency keys",
+        "Exactly-once effects",
+        "Rule engines",
+        "Interpreter pattern",
+        "Versioned configuration",
+        "Audit trails",
+        "Precision and rounding"
+      ]
+    },
+    {
+      "id": 6,
+      "key": "L6",
+      "name": "Principal-Level Frameworks",
+      "target": "Principal Engineer",
+      "weeks": "Weeks 18-20",
+      "focus": "Design the frameworks and platforms other teams build on: DI containers, saga orchestrators, policy engines, event sourcing, middleware pipelines. API ergonomics, backward compatibility, multi-tenancy and evolution over years.",
+      "exit": "You design for other engineers as users: stable contracts, extension points, migration paths, and clear failure semantics.",
+      "concepts": [
+        "Framework vs library design",
+        "Inversion of Control",
+        "Plugin architectures",
+        "Backward compatibility",
+        "Event sourcing & CQRS",
+        "Sagas & compensation",
+        "Multi-tenancy",
+        "Observability as a requirement"
+      ]
+    }
+  ],
+  "problems": [
+    {
+      "slug": "parking-lot",
+      "title": "Parking Lot",
+      "level": 1,
+      "difficulty": "Easy",
+      "minutes": 45,
+      "statement": "Design the software for a multi-floor parking lot. Vehicles of different sizes enter through entry gates, are assigned a compatible free spot, receive a ticket, and pay on exit based on time parked. Operators need to see live availability per floor and spot type. The lot should be able to add new vehicle types, spot types and pricing schemes without rewriting the core.",
+      "fr": [
+        "Support multiple floors, each with spots of types Compact, Regular, Large and EV-charging",
+        "Support vehicle types Motorcycle, Car, Van/Truck, with a defined compatibility matrix (e.g. a car fits Regular or Large)",
+        "Issue a ticket on entry with ticket id, spot, vehicle number and entry time",
+        "Allocate the nearest compatible free spot using a pluggable allocation strategy",
+        "Compute fee on exit using a pluggable pricing strategy (hourly, flat first-hour, weekend rates)",
+        "Accept payment (cash, card, UPI) and free the spot once paid",
+        "Show live free-spot counts per floor and per spot type on a display board",
+        "Reject entry with a clear reason when the lot is full for that vehicle type"
+      ],
+      "nfr": [
+        "Spot allocation must be O(log n) or better per request",
+        "Two entry gates must never assign the same spot (thread-safe allocation)",
+        "Adding a new vehicle or spot type should not modify existing allocation code (OCP)",
+        "Core logic must be unit-testable with an injected clock"
+      ],
+      "constraints": [
+        "Up to 10 floors, 500 spots per floor",
+        "Up to 5 entry and 5 exit gates operating concurrently",
+        "In-memory storage is acceptable; persistence behind an interface",
+        "Fees in INR, rounded up to the next started hour by default"
+      ],
+      "edge": [
+        "Vehicle tries to exit with a lost or invalid ticket",
+        "Same vehicle number tries to enter twice",
+        "Payment fails after the fee is computed",
+        "A spot goes out of service while occupied",
+        "Two gates request the last free spot at the same instant",
+        "Vehicle parks for under one minute or across midnight / multiple days"
+      ],
+      "behavior": [
+        "park(vehicle) returns a Ticket or throws LotFullException(vehicleType)",
+        "unpark(ticketId, payment) returns a Receipt with duration, fee and payment status; spot becomes free only after successful payment",
+        "displayBoard.snapshot() returns counts per floor × spot type that reflect every completed park/unpark"
+      ],
+      "concepts": [
+        "Entity modelling",
+        "Enums vs class hierarchy",
+        "Composition",
+        "Strategy pattern",
+        "Singleton (only if justified)",
+        "Thread-safe allocation",
+        "Observer for display boards"
+      ],
+      "patterns": [
+        "Strategy",
+        "Factory",
+        "Observer",
+        "Singleton"
+      ],
+      "followups": [
+        "Add reservations made in advance from a mobile app",
+        "Support EV charging billed per kWh in addition to parking time",
+        "Make it work across 50 lots in a city with a central dashboard"
+      ],
+      "clar": [
+        [
+          "Is it multi-floor?",
+          "Yes, multiple floors; each floor has a mix of spot types."
+        ],
+        [
+          "How is pricing calculated?",
+          "Hourly by vehicle type; first hour flat. Assume pricing rules will change often."
+        ],
+        [
+          "Do we need reservations?",
+          "Not in scope for v1, but don't make it impossible."
+        ],
+        [
+          "Which spot should be assigned?",
+          "Nearest to the entry gate by default; the business may want other strategies later."
+        ],
+        [
+          "Do we handle payments ourselves?",
+          "Model a Payment abstraction; actual gateway integration is out of scope."
+        ]
+      ],
+      "track": "core",
+      "num": 1,
+      "path": "problems/L1-foundations/01-parking-lot"
+    },
+    {
+      "slug": "tic-tac-toe",
+      "title": "Tic-Tac-Toe (N×N)",
+      "level": 1,
+      "difficulty": "Easy",
+      "minutes": 40,
+      "statement": "Design a Tic-Tac-Toe game engine that works on an N×N board for two or more players. The engine validates moves, detects wins and draws efficiently, and supports both human and bot players. It should be easy to plug in a new win rule or a new player type.",
+      "fr": [
+        "Create a game with board size N (N ≥ 3) and K players with unique symbols",
+        "Players take turns in a fixed order; reject moves out of turn",
+        "Validate a move: inside the board, cell empty, game not over",
+        "Detect a winner after each move (full row, column or either diagonal)",
+        "Detect a draw when the board is full with no winner",
+        "Support human players and bot players behind one Player interface",
+        "Support undo of the last move"
+      ],
+      "nfr": [
+        "Win detection in O(1) per move, not O(N²)",
+        "Engine independent of any UI (console, web, API)",
+        "Easily testable with scripted moves"
+      ],
+      "constraints": [
+        "3 ≤ N ≤ 100",
+        "2 ≤ K ≤ N-1 players",
+        "Single process, single game per engine instance"
+      ],
+      "edge": [
+        "Move on an occupied cell",
+        "Move after the game has ended",
+        "Undo when no moves were made",
+        "Undo after a winning move",
+        "Bot with no legal move",
+        "Duplicate player symbols"
+      ],
+      "behavior": [
+        "makeMove(player, row, col) returns GameState IN_PROGRESS, WON(player) or DRAW",
+        "Invalid moves throw InvalidMoveException with a reason and do not advance the turn",
+        "undo() restores the previous board, the turn and the win counters"
+      ],
+      "concepts": [
+        "Separation of game logic and IO",
+        "Polymorphism (Player)",
+        "O(1) win check using row/col/diagonal counters",
+        "Command pattern for undo"
+      ],
+      "patterns": [
+        "Strategy (bot difficulty, win rules)",
+        "Command (undo)",
+        "Factory (players)"
+      ],
+      "followups": [
+        "Win condition becomes K-in-a-row instead of full row",
+        "Add spectators who get notified on each move",
+        "Replay a finished game"
+      ],
+      "clar": [
+        [
+          "Board size fixed at 3?",
+          "No, N×N where N is configurable."
+        ],
+        [
+          "How many players?",
+          "Two by default but design for more."
+        ],
+        [
+          "Do we need a UI?",
+          "No UI; expose an engine API. A console driver is enough to demo."
+        ],
+        [
+          "Bots?",
+          "Yes, at least a random bot; smarter bots later."
+        ]
+      ],
+      "track": "core",
+      "num": 2,
+      "path": "problems/L1-foundations/02-tic-tac-toe"
+    },
+    {
+      "slug": "snake-and-ladder",
+      "title": "Snake and Ladder",
+      "level": 1,
+      "difficulty": "Easy",
+      "minutes": 40,
+      "statement": "Design a Snake and Ladder game supporting multiple players, a configurable board with snakes and ladders, and configurable dice. Players roll in turn, move, and are moved by snakes or ladders; the first to reach the last cell exactly wins. The rules vary between families, so rules must be pluggable.",
+      "fr": [
+        "Board of configurable size (default 100) with configurable snakes (head → tail) and ladders (start → end)",
+        "Validate board config: no cycles, no snake/ladder on start or end cell, no cell with two jumps",
+        "One or more dice; configurable faces",
+        "Players move in round-robin; first to land exactly on the last cell wins",
+        "Support rule variants: extra turn on six, three sixes cancels, overshoot bounce-back",
+        "Game continues for remaining players to rank 2nd, 3rd, etc. (optional mode)"
+      ],
+      "nfr": [
+        "Deterministic tests via an injectable dice",
+        "New rule variants added without editing the game loop"
+      ],
+      "constraints": [
+        "2-8 players",
+        "Board size 25-400",
+        "Single process"
+      ],
+      "edge": [
+        "Roll that overshoots the final cell",
+        "Snake tail landing on a ladder start (chains)",
+        "All players finished",
+        "Invalid board with snake head on cell 100"
+      ],
+      "behavior": [
+        "play() returns ranking of players",
+        "Each turn emits a TurnResult with roll, from, to and any jump taken"
+      ],
+      "concepts": [
+        "Configuration validation",
+        "Strategy for rules",
+        "Dependency injection for randomness"
+      ],
+      "patterns": [
+        "Strategy",
+        "Builder (board)",
+        "Observer (turn events)"
+      ],
+      "followups": [
+        "Add power-ups on cells",
+        "Save and resume a game",
+        "Online multiplayer with reconnection"
+      ],
+      "clar": [
+        [
+          "Exact landing needed to win?",
+          "Yes by default, but some variants allow overshoot."
+        ],
+        [
+          "Fixed snakes and ladders?",
+          "Configurable per game."
+        ],
+        [
+          "How many dice?",
+          "One by default, configurable."
+        ]
+      ],
+      "track": "core",
+      "num": 3,
+      "path": "problems/L1-foundations/03-snake-and-ladder"
+    },
+    {
+      "slug": "library-management",
+      "title": "Library Management System",
+      "level": 1,
+      "difficulty": "Easy",
+      "minutes": 45,
+      "statement": "Design a system for a public library to manage its catalogue, members, borrowing, returns, reservations and fines. A title can have many physical copies. Members borrow copies, can reserve titles that are all checked out, and are fined for late returns. Librarians manage the catalogue.",
+      "fr": [
+        "Catalogue of books (title, authors, ISBN, subject) with multiple BookItems (copies) each with a barcode and status",
+        "Search by title, author, subject or ISBN",
+        "Members borrow up to a limit of copies for a fixed period",
+        "Return a copy; compute fine for overdue days",
+        "Reserve a title when no copy is available; notify the first reserver when a copy returns",
+        "Renew a loan if no one has reserved the title",
+        "Librarians add/remove books and block members"
+      ],
+      "nfr": [
+        "Search response under 200 ms for 1M items (indexing)",
+        "Borrow/return operations are atomic",
+        "Fine policy configurable per membership type"
+      ],
+      "constraints": [
+        "Up to 1M copies, 100k members",
+        "Max 5 active loans per member, 14-day loan by default",
+        "Fine Rs 10/day, capped"
+      ],
+      "edge": [
+        "Member with unpaid fines tries to borrow",
+        "Returning a copy that was reserved by someone else",
+        "Reserved copy not collected within 3 days",
+        "Copy reported lost",
+        "Renewal requested on an overdue loan"
+      ],
+      "behavior": [
+        "checkout(memberId, barcode) returns Loan or a typed error (LimitReached, HasFines, Reserved, NotAvailable)",
+        "return(barcode) returns Fine (possibly zero) and triggers reservation notification"
+      ],
+      "concepts": [
+        "Book vs BookItem (type vs instance)",
+        "Aggregates",
+        "Observer for notifications",
+        "Strategy for fine calculation",
+        "Repository abstraction"
+      ],
+      "patterns": [
+        "Observer",
+        "Strategy",
+        "Repository"
+      ],
+      "followups": [
+        "E-books with concurrent licence limits",
+        "Inter-branch transfers",
+        "Recommendation of similar titles"
+      ],
+      "clar": [
+        [
+          "Multiple copies per book?",
+          "Yes, each copy is tracked separately."
+        ],
+        [
+          "Do we handle reservations?",
+          "Yes, a FIFO queue per title."
+        ],
+        [
+          "Fines?",
+          "Per day overdue, policy differs by membership type."
+        ]
+      ],
+      "track": "core",
+      "num": 4,
+      "path": "problems/L1-foundations/04-library-management"
+    },
+    {
+      "slug": "shopping-cart",
+      "title": "Shopping Cart & Checkout",
+      "level": 1,
+      "difficulty": "Easy",
+      "minutes": 45,
+      "statement": "Design the cart and checkout module of an e-commerce store. Customers add products with variants to a cart, apply coupons, see a price breakdown with taxes and shipping, and check out into an order. Discounts and tax rules change frequently and must be pluggable.",
+      "fr": [
+        "Add, update quantity, remove line items (product + variant)",
+        "Validate stock at add time and again at checkout",
+        "Apply coupons: percentage, flat, buy-X-get-Y, free shipping; define stacking rules",
+        "Compute subtotal, discounts, tax (GST by category), shipping and grand total",
+        "Persist cart for guests and merge into user cart on login",
+        "Checkout creates an Order with a snapshot of prices; cart is cleared"
+      ],
+      "nfr": [
+        "Money must use fixed-point/decimal, never floats",
+        "Price computation deterministic and explainable (line-level breakdown)",
+        "New discount type added without touching existing ones"
+      ],
+      "constraints": [
+        "Max 50 line items per cart",
+        "Max 2 coupons per cart",
+        "Single currency (INR)"
+      ],
+      "edge": [
+        "Price changes between add-to-cart and checkout",
+        "Coupon expired at checkout",
+        "Coupon makes total negative",
+        "Item goes out of stock during checkout",
+        "Guest cart merge with duplicate items"
+      ],
+      "behavior": [
+        "cart.summary() returns line items, each discount applied with reason, taxes and totals",
+        "checkout() returns Order or a list of validation problems the UI can display"
+      ],
+      "concepts": [
+        "Value objects (Money)",
+        "Strategy / Chain for pricing rules",
+        "Snapshotting",
+        "Rounding rules"
+      ],
+      "patterns": [
+        "Strategy",
+        "Chain of Responsibility",
+        "Composite (bundled products)",
+        "Factory"
+      ],
+      "followups": [
+        "Multi-currency",
+        "Flash sale with limited quantity",
+        "Seller-funded vs platform-funded discounts split"
+      ],
+      "clar": [
+        [
+          "Which discounts?",
+          "Percentage, flat, BOGO, free shipping. More will come."
+        ],
+        [
+          "Can coupons stack?",
+          "At most two, and only one percentage coupon."
+        ],
+        [
+          "Taxes?",
+          "GST rate depends on product category."
+        ]
+      ],
+      "track": "core",
+      "num": 5,
+      "path": "problems/L1-foundations/05-shopping-cart"
+    },
+    {
+      "slug": "employee-hierarchy",
+      "title": "Employee Directory & Org Chart",
+      "level": 1,
+      "difficulty": "Easy",
+      "minutes": 35,
+      "statement": "Design an employee directory that models an organisation's reporting hierarchy, departments and roles. HR can add, move and remove employees; anyone can query reporting chains, direct reports, headcount per department and the lowest common manager of two employees.",
+      "fr": [
+        "Add employee with manager, department, role, location",
+        "Move an employee (and optionally their subtree) to a new manager",
+        "Remove an employee and reassign their reports",
+        "Query direct reports, full subtree, and chain up to the CEO",
+        "Lowest common manager of two employees",
+        "Headcount by department or location"
+      ],
+      "nfr": [
+        "Queries efficient for 100k employees",
+        "Hierarchy must never contain a cycle",
+        "Read-heavy; optimise for reads"
+      ],
+      "constraints": [
+        "Single CEO",
+        "Depth up to 20 levels"
+      ],
+      "edge": [
+        "Moving a manager under their own report (cycle)",
+        "Removing the CEO",
+        "Employee with no department",
+        "Duplicate employee id"
+      ],
+      "behavior": [
+        "move() rejects cycles with a clear error",
+        "queries reflect writes immediately"
+      ],
+      "concepts": [
+        "Tree modelling",
+        "Composite",
+        "Invariants",
+        "Caching derived data"
+      ],
+      "patterns": [
+        "Composite",
+        "Visitor (reports over the tree)",
+        "Iterator"
+      ],
+      "followups": [
+        "Dotted-line (matrix) reporting",
+        "Historical org chart as of a date"
+      ],
+      "clar": [
+        [
+          "Can someone have two managers?",
+          "Not in v1."
+        ],
+        [
+          "What happens to reports when a manager leaves?",
+          "They move to the leaver's manager by default."
+        ]
+      ],
+      "track": "core",
+      "num": 6,
+      "path": "problems/L1-foundations/06-employee-hierarchy"
+    },
+    {
+      "slug": "snake-game",
+      "title": "Snake Game",
+      "level": 1,
+      "difficulty": "Easy",
+      "minutes": 35,
+      "statement": "Design the engine for the classic Snake game on a W×H grid. The snake moves one cell per tick in its current direction, grows when it eats food, and dies on hitting a wall or itself. Food appears at random free cells. The engine must be UI-agnostic and deterministic under test.",
+      "fr": [
+        "Grid of configurable width and height",
+        "Snake moves one cell per tick; direction changes via input",
+        "Eating food grows the snake by one and increases score",
+        "Food spawns on a random free cell",
+        "Game over on wall or self collision",
+        "Optional wrap-around mode instead of walls"
+      ],
+      "nfr": [
+        "Each tick O(1) (deque body + occupied-cell set)",
+        "Randomness injectable for tests",
+        "Engine has no rendering code"
+      ],
+      "constraints": [
+        "Grid up to 1000×1000",
+        "One input processed per tick"
+      ],
+      "edge": [
+        "Reverse direction input (180° turn)",
+        "Moving into the cell the tail is leaving this tick",
+        "No free cell left for food (win)",
+        "Two inputs between ticks"
+      ],
+      "behavior": [
+        "tick() returns TickResult: MOVED, ATE, GAME_OVER(reason)",
+        "changeDirection ignores direct reversal"
+      ],
+      "concepts": [
+        "Deque modelling",
+        "Separating state from rendering",
+        "Deterministic randomness"
+      ],
+      "patterns": [
+        "Strategy (boundary rules)",
+        "Observer (score/UI)",
+        "State (Running, Paused, Over)"
+      ],
+      "followups": [
+        "Obstacles and levels",
+        "Two-player snakes on one grid",
+        "Speed increases with score"
+      ],
+      "clar": [
+        [
+          "Walls or wrap?",
+          "Walls by default; wrap is a mode."
+        ],
+        [
+          "What if the snake fills the board?",
+          "Player wins."
+        ]
+      ],
+      "track": "extended",
+      "num": 7,
+      "path": "problems/L1-foundations/07-snake-game"
+    },
+    {
+      "slug": "minesweeper",
+      "title": "Minesweeper",
+      "level": 1,
+      "difficulty": "Easy",
+      "minutes": 40,
+      "statement": "Design a Minesweeper engine: a board with hidden mines, numbered cells, reveal and flag actions, flood-fill reveal of empty regions, and win/lose detection. The first click must never be a mine.",
+      "fr": [
+        "Board R×C with M mines",
+        "Mines placed after the first click, excluding that cell (and optionally its neighbours)",
+        "reveal(r,c): mine loses; number shows count; zero flood-fills",
+        "flag/unflag cells",
+        "Chord: reveal neighbours when flag count matches number",
+        "Win when all non-mine cells revealed",
+        "Difficulty presets"
+      ],
+      "nfr": [
+        "Flood fill iterative (no stack overflow on large boards)",
+        "Seeded RNG for tests"
+      ],
+      "constraints": [
+        "Up to 500×500",
+        "M < R×C − 9"
+      ],
+      "edge": [
+        "Reveal a flagged cell",
+        "Chord with wrong flags (lose)",
+        "Reveal after game over",
+        "Mine count too high"
+      ],
+      "behavior": [
+        "reveal returns the list of cells newly revealed and game state"
+      ],
+      "concepts": [
+        "BFS flood fill",
+        "Lazy initialisation",
+        "Cell state enum"
+      ],
+      "patterns": [
+        "State",
+        "Factory (presets)",
+        "Observer"
+      ],
+      "followups": [
+        "Undo last reveal (practice mode)",
+        "Hint system"
+      ],
+      "clar": [
+        [
+          "First click safe?",
+          "Yes, always."
+        ],
+        [
+          "Chording?",
+          "Yes."
+        ]
+      ],
+      "track": "extended",
+      "num": 8,
+      "path": "problems/L1-foundations/08-minesweeper"
+    },
+    {
+      "slug": "course-registration",
+      "title": "Course Registration System",
+      "level": 1,
+      "difficulty": "Easy",
+      "minutes": 40,
+      "statement": "Design a university course registration system. Students register for course sections each term subject to prerequisites, seat limits, schedule clashes and credit limits. Full sections offer a waitlist. Admins manage courses and sections.",
+      "fr": [
+        "Courses with prerequisites and credits; sections with instructor, time slots, capacity",
+        "Register/drop a section",
+        "Validate prerequisites, credit cap, time clash",
+        "Waitlist with auto-enrol when a seat frees",
+        "Registration windows by student year",
+        "View timetable and transcript"
+      ],
+      "nfr": [
+        "No over-enrolment under concurrent registration",
+        "Validation rules pluggable"
+      ],
+      "constraints": [
+        "Max 24 credits per term",
+        "Up to 20k students"
+      ],
+      "edge": [
+        "Prerequisite in progress this term",
+        "Drop after deadline",
+        "Waitlisted student now has a clash",
+        "Two students taking the last seat"
+      ],
+      "behavior": [
+        "register returns Enrolled, Waitlisted(position) or Rejected(reasons)"
+      ],
+      "concepts": [
+        "Validation chain",
+        "Waitlist queues",
+        "Atomic seat counters"
+      ],
+      "patterns": [
+        "Chain of Responsibility (validators)",
+        "Observer",
+        "Repository"
+      ],
+      "followups": [
+        "Co-requisites",
+        "Priority registration for seniors"
+      ],
+      "clar": [
+        [
+          "Waitlist?",
+          "Yes, FIFO."
+        ],
+        [
+          "Schedule clash check?",
+          "Yes."
+        ]
+      ],
+      "track": "extended",
+      "num": 9,
+      "path": "problems/L1-foundations/09-course-registration"
+    },
+    {
+      "slug": "car-rental",
+      "title": "Car Rental System",
+      "level": 1,
+      "difficulty": "Easy",
+      "minutes": 45,
+      "statement": "Design a car rental system across branches. Customers search vehicles by type, branch and dates, reserve, pick up, and return possibly at another branch. Pricing depends on vehicle type, duration and add-ons. Late returns and damage are charged.",
+      "fr": [
+        "Branches, vehicles (type, plate, status), customers with licence",
+        "Search availability by branch, type, date range",
+        "Reserve, modify, cancel",
+        "Pick-up and return (one-way allowed with fee)",
+        "Pricing: daily rate × days + add-ons (GPS, insurance, child seat)",
+        "Late fee and damage charges on return"
+      ],
+      "nfr": [
+        "No double reservation of a vehicle",
+        "Pricing extensible"
+      ],
+      "constraints": [
+        "Up to 200 branches"
+      ],
+      "edge": [
+        "Return earlier than booked",
+        "Vehicle unavailable at pick-up (upgrade)",
+        "Licence expires before trip end"
+      ],
+      "behavior": [
+        "reserve returns Reservation or NoAvailability"
+      ],
+      "concepts": [
+        "Availability over date ranges",
+        "Strategy pricing",
+        "Decorator add-ons"
+      ],
+      "patterns": [
+        "Strategy",
+        "Decorator",
+        "State",
+        "Factory"
+      ],
+      "followups": [
+        "Loyalty tiers",
+        "Fleet maintenance scheduling"
+      ],
+      "clar": [
+        [
+          "Reserve a specific car or a type?",
+          "A type; car assigned at pick-up."
+        ]
+      ],
+      "track": "extended",
+      "num": 10,
+      "path": "problems/L1-foundations/10-car-rental"
+    },
+    {
+      "slug": "restaurant-reservation",
+      "title": "Restaurant Table Reservation",
+      "level": 1,
+      "difficulty": "Easy",
+      "minutes": 35,
+      "statement": "Design a reservation system for a restaurant with tables of different sizes. Guests book a time slot for a party size; the system assigns suitable tables (possibly combining adjacent ones), handles walk-ins, waitlist and no-shows.",
+      "fr": [
+        "Tables with capacity and combinable groups",
+        "Book by date, time slot and party size",
+        "Assign smallest suitable table or table combination",
+        "Walk-in queue with estimated wait",
+        "Mark seated, completed, no-show",
+        "Cancel and modify"
+      ],
+      "nfr": [
+        "Allocation strategy pluggable",
+        "No double booking of a table slot"
+      ],
+      "constraints": [
+        "Slots of 90 minutes",
+        "Up to 60 tables"
+      ],
+      "edge": [
+        "Party larger than any combination",
+        "Booking overlaps a slot that runs late",
+        "No-show after 15 minutes"
+      ],
+      "behavior": [
+        "book returns Booking with tables or alternative times"
+      ],
+      "concepts": [
+        "Interval allocation",
+        "Strategy",
+        "Waitlist"
+      ],
+      "patterns": [
+        "Strategy",
+        "Observer",
+        "State"
+      ],
+      "followups": [
+        "Deposits for large parties",
+        "Multiple outlets"
+      ],
+      "clar": [
+        [
+          "Combine tables?",
+          "Yes, only predefined combinations."
+        ]
+      ],
+      "track": "extended",
+      "num": 11,
+      "path": "problems/L1-foundations/11-restaurant-reservation"
+    },
+    {
+      "slug": "blackjack",
+      "title": "Card Game Engine (Blackjack)",
+      "level": 1,
+      "difficulty": "Easy",
+      "minutes": 40,
+      "statement": "Design a reusable deck-of-cards library and a Blackjack game on top of it: shoe of multiple decks, players with chips, dealer rules, hit/stand/double/split, and payouts. The card library should be reusable for other games.",
+      "fr": [
+        "Card, Suit, Rank, Deck, Shoe (N decks) with shuffle",
+        "Player hands, bets, chips",
+        "Actions: hit, stand, double, split",
+        "Dealer hits until 17 (soft-17 rule configurable)",
+        "Ace counts 1 or 11",
+        "Payouts: blackjack 3:2, win 1:1, push"
+      ],
+      "nfr": [
+        "Card library independent of Blackjack",
+        "Shuffle injectable"
+      ],
+      "constraints": [
+        "1-7 players, 1-8 decks"
+      ],
+      "edge": [
+        "Split aces",
+        "Shoe runs low mid-round",
+        "Bet exceeds chips",
+        "Dealer and player both blackjack"
+      ],
+      "behavior": [
+        "Round produces settlement per hand"
+      ],
+      "concepts": [
+        "Reusable domain library",
+        "Hand value with soft totals",
+        "Rules configuration"
+      ],
+      "patterns": [
+        "Strategy (dealer rules)",
+        "State (round)",
+        "Factory"
+      ],
+      "followups": [
+        "Insurance",
+        "Poker using same card library"
+      ],
+      "clar": [
+        [
+          "Splitting?",
+          "Yes, once."
+        ],
+        [
+          "Soft 17?",
+          "Configurable."
+        ]
+      ],
+      "track": "extended",
+      "num": 12,
+      "path": "problems/L1-foundations/12-blackjack"
+    },
+    {
+      "slug": "online-exam",
+      "title": "Online Exam / Quiz System",
+      "level": 1,
+      "difficulty": "Easy",
+      "minutes": 40,
+      "statement": "Design an online examination system: question banks, question types (MCQ single/multi, true/false, short answer, coding), exams assembled from banks with rules, timed attempts, auto-grading where possible and results.",
+      "fr": [
+        "Question bank with tags and difficulty",
+        "Question types with type-specific grading",
+        "Exam: sections, duration, random selection rules, negative marking",
+        "Candidate attempt with autosave and resume",
+        "Auto-submit on timeout",
+        "Results and per-section analytics"
+      ],
+      "nfr": [
+        "New question type without changing exam code",
+        "Attempts never lose answers"
+      ],
+      "constraints": [
+        "Up to 5000 concurrent candidates per exam"
+      ],
+      "edge": [
+        "Connection drop mid-attempt",
+        "Question edited after exam published",
+        "Partial credit on multi-select"
+      ],
+      "behavior": [
+        "submit returns score breakdown; manual-grade questions pending"
+      ],
+      "concepts": [
+        "Polymorphic questions",
+        "Snapshotting exam content",
+        "Strategy for grading"
+      ],
+      "patterns": [
+        "Strategy",
+        "Factory",
+        "Template method",
+        "Builder"
+      ],
+      "followups": [
+        "Proctoring events",
+        "Adaptive difficulty"
+      ],
+      "clar": [
+        [
+          "Negative marking?",
+          "Configurable per exam."
+        ]
+      ],
+      "track": "extended",
+      "num": 13,
+      "path": "problems/L1-foundations/13-online-exam"
+    },
+    {
+      "slug": "todo-manager",
+      "title": "Task Manager with Reminders",
+      "level": 1,
+      "difficulty": "Easy",
+      "minutes": 35,
+      "statement": "Design a personal task manager: tasks with priority, due date, tags, subtasks and recurrence; lists and filters; reminders that fire before due time.",
+      "fr": [
+        "Create/update/complete tasks",
+        "Subtasks; parent completes when all subtasks complete (optional rule)",
+        "Recurring tasks (daily, weekly, custom)",
+        "Filters: by tag, priority, due range; saved smart lists",
+        "Reminders N minutes before due",
+        "Sort by multiple keys"
+      ],
+      "nfr": [
+        "Recurrence rules extensible",
+        "Time-zone correct"
+      ],
+      "constraints": [
+        "10k tasks per user"
+      ],
+      "edge": [
+        "Completing a recurring task early",
+        "Due date in the past",
+        "Reminder when device offline"
+      ],
+      "behavior": [
+        "Completing a recurring task creates the next occurrence"
+      ],
+      "concepts": [
+        "Composite (subtasks)",
+        "Specification filters",
+        "Recurrence calculation"
+      ],
+      "patterns": [
+        "Composite",
+        "Specification",
+        "Observer",
+        "Strategy"
+      ],
+      "followups": [
+        "Shared lists",
+        "Natural-language input"
+      ],
+      "clar": [
+        [
+          "Recurrence?",
+          "Yes."
+        ],
+        [
+          "Sharing?",
+          "Not in v1."
+        ]
+      ],
+      "track": "extended",
+      "num": 14,
+      "path": "problems/L1-foundations/14-todo-manager"
+    },
+    {
+      "slug": "gym-membership",
+      "title": "Gym Membership & Class Booking",
+      "level": 1,
+      "difficulty": "Easy",
+      "minutes": 40,
+      "statement": "Design a system for a gym chain: membership plans, check-ins, group classes with capacity and booking, trainers, and freeze/cancel rules.",
+      "fr": [
+        "Plans (monthly, quarterly, annual) with access rules per branch",
+        "Check-in validating active membership",
+        "Classes with trainer, slot, capacity; book and cancel",
+        "Waitlist for full classes",
+        "Freeze membership for N days",
+        "Penalties for no-shows"
+      ],
+      "nfr": [
+        "Access rules configurable",
+        "No class overbooking"
+      ],
+      "constraints": [
+        "50 branches"
+      ],
+      "edge": [
+        "Expired membership tries to book",
+        "Trainer cancels class",
+        "Freeze overlapping a booked class"
+      ],
+      "behavior": [
+        "book returns Booked, Waitlisted or Rejected(reason)"
+      ],
+      "concepts": [
+        "Validity periods",
+        "Capacity management",
+        "Strategy for plans"
+      ],
+      "patterns": [
+        "Strategy",
+        "Observer",
+        "State"
+      ],
+      "followups": [
+        "Personal training packages",
+        "Family plans"
+      ],
+      "clar": [
+        [
+          "Multi-branch access?",
+          "Depends on plan."
+        ]
+      ],
+      "track": "extended",
+      "num": 15,
+      "path": "problems/L1-foundations/15-gym-membership"
+    },
+    {
+      "slug": "url-shortener",
+      "title": "URL Shortener (Object Model)",
+      "level": 1,
+      "difficulty": "Easy",
+      "minutes": 35,
+      "statement": "Design the object model and core logic of a URL shortener: create short codes for long URLs, custom aliases, expiry, redirect lookup and click analytics. Focus on the class design and code generation strategy, not distributed storage.",
+      "fr": [
+        "Shorten(url, alias?, expiry?)",
+        "Resolve(code) returns long URL or not found/expired",
+        "Custom aliases with validation",
+        "Click counting by day and referrer",
+        "Delete/disable link by owner"
+      ],
+      "nfr": [
+        "Code generation strategy pluggable (base62 counter, hash, random)",
+        "Lookup O(1)",
+        "Repository abstraction for storage"
+      ],
+      "constraints": [
+        "Codes 7 characters base62"
+      ],
+      "edge": [
+        "Alias collision",
+        "Same long URL shortened twice",
+        "Malicious or invalid URL",
+        "Expired link"
+      ],
+      "behavior": [
+        "resolve never returns expired links"
+      ],
+      "concepts": [
+        "Strategy for ID generation",
+        "Repository",
+        "Validation"
+      ],
+      "patterns": [
+        "Strategy",
+        "Repository",
+        "Factory"
+      ],
+      "followups": [
+        "Rate limit per user",
+        "Link previews"
+      ],
+      "clar": [
+        [
+          "Same URL twice gets same code?",
+          "Per user, yes."
+        ]
+      ],
+      "track": "extended",
+      "num": 16,
+      "path": "problems/L1-foundations/16-url-shortener"
+    },
+    {
+      "slug": "vending-machine",
+      "title": "Vending Machine",
+      "level": 2,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design the controller software of a vending machine. A user selects a product, inserts money (coins, notes or card), receives the product and correct change, or cancels and gets a refund. The machine behaves differently depending on its current state, and an operator can restock products and collect cash.",
+      "fr": [
+        "Inventory of products in slots with price and quantity",
+        "States: Idle, HasSelection, AcceptingMoney, Dispensing, OutOfService",
+        "Accept coins and notes of fixed denominations; card payments",
+        "Dispense product and return change using available denominations",
+        "Cancel at any time before dispensing returns all inserted money",
+        "Operator mode: restock, set price, collect cash, view sales"
+      ],
+      "nfr": [
+        "Invalid actions in a state are rejected, never crash",
+        "State logic extensible without long if/else chains",
+        "Never lose track of money: inserted = dispensed + returned + kept"
+      ],
+      "constraints": [
+        "Denominations 1, 2, 5, 10, 20, 50, 100, 200, 500",
+        "Limited coin stock for change",
+        "One transaction at a time"
+      ],
+      "edge": [
+        "Exact change unavailable",
+        "Product sold out after selection",
+        "Power failure mid-dispense",
+        "Card payment declined",
+        "Inserting money without selecting"
+      ],
+      "behavior": [
+        "Every action returns the new state and any output (product, change, error)",
+        "If change cannot be made, the transaction is refused before money is accepted or the money is refunded"
+      ],
+      "concepts": [
+        "State pattern",
+        "Greedy vs DP change-making",
+        "Invariants on cash",
+        "Command for operator actions"
+      ],
+      "patterns": [
+        "State",
+        "Strategy (change making)",
+        "Singleton"
+      ],
+      "followups": [
+        "Remote telemetry and low-stock alerts",
+        "Combo offers",
+        "Multiple machines with a central server"
+      ],
+      "clar": [
+        [
+          "Card payments?",
+          "Yes, besides coins and notes."
+        ],
+        [
+          "If change not possible?",
+          "Refuse the transaction and refund."
+        ],
+        [
+          "Operator features?",
+          "Restock, change price, collect cash."
+        ]
+      ],
+      "track": "core",
+      "num": 17,
+      "path": "problems/L2-design-patterns/17-vending-machine"
+    },
+    {
+      "slug": "atm",
+      "title": "ATM System",
+      "level": 2,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design the software running inside an ATM. A customer inserts a card, enters a PIN, chooses an operation (withdraw, deposit, balance, mini statement, PIN change), and the ATM talks to the bank's backend. Cash is dispensed from cassettes of different denominations. Failure in the middle of a withdrawal must not lose the customer's money.",
+      "fr": [
+        "Card read and PIN validation with 3 attempts before card retention",
+        "Withdraw: check balance via bank, dispense using available notes, debit account",
+        "Deposit cash/cheque",
+        "Balance enquiry and mini statement",
+        "Session timeout and cancel at any step",
+        "Admin: refill cassettes, view logs"
+      ],
+      "nfr": [
+        "Withdrawal must be atomic: debit reversed if dispense fails",
+        "All bank calls idempotent with a transaction id",
+        "Every step audited"
+      ],
+      "constraints": [
+        "Cassettes of 100, 200, 500, 2000",
+        "Daily withdrawal limit per card",
+        "Network to bank may be slow or down"
+      ],
+      "edge": [
+        "Amount not dispensable with current notes",
+        "Bank timeout after debit",
+        "Card stuck",
+        "Insufficient cash in ATM",
+        "Customer walks away mid-session"
+      ],
+      "behavior": [
+        "State transitions: Idle → CardInserted → Authenticated → Transaction → Idle",
+        "Dispense uses Chain of Responsibility from highest note down"
+      ],
+      "concepts": [
+        "State machine",
+        "Chain of Responsibility (cash dispenser)",
+        "Compensating transactions",
+        "Idempotency"
+      ],
+      "patterns": [
+        "State",
+        "Chain of Responsibility",
+        "Facade (bank client)",
+        "Command"
+      ],
+      "followups": [
+        "Cardless withdrawal with UPI QR",
+        "Multi-bank network (interchange)"
+      ],
+      "clar": [
+        [
+          "Which operations?",
+          "Withdraw, deposit, balance, mini statement, PIN change."
+        ],
+        [
+          "What if the network fails after debit?",
+          "The debit must be reversed; design for it."
+        ]
+      ],
+      "track": "core",
+      "num": 18,
+      "path": "problems/L2-design-patterns/18-atm"
+    },
+    {
+      "slug": "logger-framework",
+      "title": "Logging Framework",
+      "level": 2,
+      "difficulty": "Medium",
+      "minutes": 40,
+      "statement": "Design a logging library (like log4j or winston) that application code uses to log messages at levels, routed to one or more destinations (console, file, remote) with configurable formats. Logging must not slow down the application noticeably.",
+      "fr": [
+        "Levels DEBUG, INFO, WARN, ERROR, FATAL with a threshold per logger",
+        "Hierarchical named loggers inheriting config (com.app.orders inherits com.app)",
+        "Multiple appenders per logger: console, rolling file, HTTP",
+        "Pluggable formatters: plain text, JSON",
+        "Structured context (request id, user id) attached to every log in a scope",
+        "Async mode with bounded buffer"
+      ],
+      "nfr": [
+        "Logging call is cheap when level disabled",
+        "Thread-safe",
+        "Appender failure never crashes the app",
+        "Config reloadable at runtime"
+      ],
+      "constraints": [
+        "Up to 50k log lines/sec",
+        "File rolls at 100 MB"
+      ],
+      "edge": [
+        "Disk full",
+        "Remote appender down",
+        "Async buffer full (drop or block?)",
+        "Recursive logging inside an appender"
+      ],
+      "behavior": [
+        "logger.info(msg, ctx) is routed to every appender whose level allows it",
+        "Async mode: shutdown flushes pending messages"
+      ],
+      "concepts": [
+        "Chain of Responsibility",
+        "Singleton registry",
+        "Strategy for formatters",
+        "Producer-consumer for async"
+      ],
+      "patterns": [
+        "Chain of Responsibility",
+        "Singleton",
+        "Strategy",
+        "Observer",
+        "Builder"
+      ],
+      "followups": [
+        "Sampling noisy logs",
+        "PII redaction"
+      ],
+      "clar": [
+        [
+          "Async needed?",
+          "Yes, optionally."
+        ],
+        [
+          "Destinations?",
+          "Console, file, remote HTTP; more later."
+        ],
+        [
+          "When buffer is full?",
+          "Configurable: drop oldest or block."
+        ]
+      ],
+      "track": "core",
+      "num": 19,
+      "path": "problems/L2-design-patterns/19-logger-framework"
+    },
+    {
+      "slug": "elevator-system",
+      "title": "Elevator System",
+      "level": 2,
+      "difficulty": "Medium",
+      "minutes": 50,
+      "statement": "Design the control system for a bank of elevators in a building. People press up/down buttons on floors and destination buttons inside cars. A dispatcher assigns hall calls to cars to minimise wait time. Cars move, stop, open doors, and handle maintenance and emergency modes.",
+      "fr": [
+        "N elevators, M floors",
+        "Hall calls (floor, direction) and car calls (destination)",
+        "Dispatcher assigns hall calls using a pluggable strategy (nearest car, SCAN/LOOK, zoning)",
+        "Each car has state: Idle, MovingUp, MovingDown, DoorsOpen, Maintenance",
+        "Capacity/weight limit",
+        "Emergency: all cars go to ground floor and open"
+      ],
+      "nfr": [
+        "Simulation-driven: logic testable with a tick-based clock",
+        "Strategies swappable at runtime (peak hours)",
+        "No request is starved"
+      ],
+      "constraints": [
+        "Up to 8 cars, 60 floors",
+        "Car moves 1 floor per tick"
+      ],
+      "edge": [
+        "Same floor request from multiple people",
+        "Car overweight",
+        "Request for current floor",
+        "Car goes into maintenance with pending requests",
+        "Conflicting directions"
+      ],
+      "behavior": [
+        "step() advances simulation and returns events (arrived, doors opened)",
+        "Pending requests of a car entering maintenance are reassigned"
+      ],
+      "concepts": [
+        "State",
+        "Strategy",
+        "Observer (displays)",
+        "Scheduling algorithms (SCAN, LOOK)"
+      ],
+      "patterns": [
+        "State",
+        "Strategy",
+        "Observer",
+        "Command"
+      ],
+      "followups": [
+        "Destination dispatch (choose floor in lobby)",
+        "VIP/service elevators",
+        "Energy-saving mode"
+      ],
+      "clar": [
+        [
+          "How many elevators?",
+          "Multiple, configurable."
+        ],
+        [
+          "Scheduling?",
+          "Start simple, make it pluggable."
+        ],
+        [
+          "Real hardware?",
+          "No, simulate with ticks."
+        ]
+      ],
+      "track": "core",
+      "num": 20,
+      "path": "problems/L2-design-patterns/20-elevator-system"
+    },
+    {
+      "slug": "notification-service",
+      "title": "Notification Service",
+      "level": 2,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design a library/service that other modules use to send notifications to users over Email, SMS, Push and WhatsApp. Messages come from templates, respect user preferences and quiet hours, retry on failure, and new channels should be addable without changing callers.",
+      "fr": [
+        "Send a notification (userId, templateId, params, priority)",
+        "Render templates per channel and locale",
+        "Respect user channel preferences and opt-outs",
+        "Fallback chain: push → SMS if push fails",
+        "Retry with exponential backoff",
+        "Track delivery status per message"
+      ],
+      "nfr": [
+        "Adding a channel = adding a class",
+        "Provider (Twilio/SES) swappable per channel",
+        "Rate limit per user and per provider"
+      ],
+      "constraints": [
+        "Critical (OTP) notifications bypass quiet hours",
+        "Max 3 retries"
+      ],
+      "edge": [
+        "Missing template param",
+        "User opted out of all channels",
+        "Provider outage",
+        "Duplicate send request"
+      ],
+      "behavior": [
+        "send() returns a NotificationId immediately; status queryable later"
+      ],
+      "concepts": [
+        "Strategy",
+        "Factory",
+        "Observer",
+        "Template method",
+        "Decorator (retry, rate-limit wrappers)"
+      ],
+      "patterns": [
+        "Factory",
+        "Strategy",
+        "Decorator",
+        "Chain of Responsibility",
+        "Observer"
+      ],
+      "followups": [
+        "Digest/batching",
+        "Scheduled notifications",
+        "A/B testing templates"
+      ],
+      "clar": [
+        [
+          "Channels?",
+          "Email, SMS, push now; WhatsApp soon."
+        ],
+        [
+          "Sync or async?",
+          "Async; caller shouldn't wait for delivery."
+        ]
+      ],
+      "track": "core",
+      "num": 21,
+      "path": "problems/L2-design-patterns/21-notification-service"
+    },
+    {
+      "slug": "coffee-machine",
+      "title": "Coffee Machine (Customisable Beverages)",
+      "level": 2,
+      "difficulty": "Easy",
+      "minutes": 35,
+      "statement": "Design a coffee machine that makes beverages (espresso, latte, cappuccino) with optional add-ons (extra shot, oat milk, caramel, whipped cream). Price and recipe depend on base + add-ons. The machine tracks ingredients and refuses orders it cannot make.",
+      "fr": [
+        "Menu of base beverages with recipes",
+        "Add-ons that modify price and ingredients",
+        "Check ingredient availability before brewing",
+        "Deduct ingredients after brewing",
+        "Refill and low-ingredient alerts"
+      ],
+      "nfr": [
+        "New add-on without modifying beverages",
+        "Thread-safe ingredient deduction if multiple dispensers"
+      ],
+      "constraints": [
+        "Up to 4 dispensers sharing one ingredient store"
+      ],
+      "edge": [
+        "Ingredient runs out mid-order",
+        "Incompatible add-on (whipped cream on espresso)",
+        "Two dispensers race for last milk"
+      ],
+      "behavior": [
+        "order(beverageSpec) returns Beverage with price and description or InsufficientIngredients"
+      ],
+      "concepts": [
+        "Decorator",
+        "Builder",
+        "Observer",
+        "Atomic reservation of resources"
+      ],
+      "patterns": [
+        "Decorator",
+        "Builder",
+        "Observer"
+      ],
+      "followups": [
+        "Loyalty points",
+        "Recipe per customer profile"
+      ],
+      "clar": [
+        [
+          "Add-ons stackable?",
+          "Yes, some multiple times."
+        ],
+        [
+          "Multiple dispensers?",
+          "Yes, sharing the same tanks."
+        ]
+      ],
+      "track": "core",
+      "num": 22,
+      "path": "problems/L2-design-patterns/22-coffee-machine"
+    },
+    {
+      "slug": "file-system",
+      "title": "In-Memory File System",
+      "level": 2,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design an in-memory hierarchical file system supporting directories and files with operations like mkdir, ls, create, read, write, move, delete and search. Sizes of directories are computed from contents. Support permissions per user.",
+      "fr": [
+        "Paths like /a/b/c.txt",
+        "mkdir -p, ls (sorted), touch, read, write/append",
+        "mv and cp for files and directories",
+        "rm with recursive option",
+        "find by name pattern, size, extension",
+        "Permissions read/write/execute for owner/group/others"
+      ],
+      "nfr": [
+        "Path resolution O(depth)",
+        "Search extensible with new filters",
+        "Directory size computed efficiently"
+      ],
+      "constraints": [
+        "Up to 1M nodes",
+        "Path length 4096"
+      ],
+      "edge": [
+        "Moving a directory into its own subtree",
+        "Name collision on mv",
+        "rm on root",
+        "Symbolic link loops (if supported)",
+        "Permission denied mid-recursive delete"
+      ],
+      "behavior": [
+        "Operations return typed errors (NotFound, AlreadyExists, PermissionDenied, NotADirectory)"
+      ],
+      "concepts": [
+        "Composite",
+        "Specification pattern for search",
+        "Visitor for size",
+        "Trie-like path tree"
+      ],
+      "patterns": [
+        "Composite",
+        "Specification",
+        "Visitor",
+        "Iterator"
+      ],
+      "followups": [
+        "Snapshots / versioning",
+        "Quotas per user"
+      ],
+      "clar": [
+        [
+          "Need search?",
+          "Yes, by name, size, extension combined with AND/OR."
+        ],
+        [
+          "Permissions?",
+          "Unix-style."
+        ]
+      ],
+      "track": "core",
+      "num": 23,
+      "path": "problems/L2-design-patterns/23-file-system"
+    },
+    {
+      "slug": "traffic-signal",
+      "title": "Traffic Signal Controller",
+      "level": 2,
+      "difficulty": "Easy",
+      "minutes": 35,
+      "statement": "Design a controller for a traffic junction with multiple roads and signals. Signals cycle through phases with configurable timings, pedestrian crossing requests, and emergency vehicle priority. Conflicting directions must never be green together.",
+      "fr": [
+        "Junction with N roads, each with a signal (Red, Yellow, Green)",
+        "Phase plan defines which signals are green together and for how long",
+        "Pedestrian button extends/inserts a walk phase",
+        "Emergency override",
+        "Night mode: blinking yellow"
+      ],
+      "nfr": [
+        "Safety invariant: conflicting greens never overlap",
+        "Timing plans changeable without restart"
+      ],
+      "constraints": [
+        "4-6 roads per junction"
+      ],
+      "edge": [
+        "Emergency during yellow",
+        "Two emergency vehicles from conflicting roads",
+        "Sensor failure"
+      ],
+      "behavior": [
+        "tick(t) advances phases; any invariant breach is impossible by construction"
+      ],
+      "concepts": [
+        "State pattern",
+        "Invariant design",
+        "Observer"
+      ],
+      "patterns": [
+        "State",
+        "Observer",
+        "Strategy (timing plans)"
+      ],
+      "followups": [
+        "Adaptive timing by traffic density",
+        "Coordinated green waves across junctions"
+      ],
+      "clar": [
+        [
+          "Pedestrian crossings?",
+          "Yes, button triggered."
+        ],
+        [
+          "Emergency vehicles?",
+          "Yes, get green on their road ASAP but safely."
+        ]
+      ],
+      "track": "core",
+      "num": 24,
+      "path": "problems/L2-design-patterns/24-traffic-signal"
+    },
+    {
+      "slug": "text-editor",
+      "title": "Text Editor with Undo/Redo",
+      "level": 2,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design the core of a text editor: buffer, cursor and selection, insert/delete/replace, copy/paste, find/replace, and unlimited undo/redo with grouping of consecutive typing.",
+      "fr": [
+        "Insert, delete, replace at cursor or selection",
+        "Cursor moves by char, word, line",
+        "Clipboard copy/cut/paste",
+        "Undo/redo with typing coalescing",
+        "Find and replace (all/next), regex optional",
+        "Save/load"
+      ],
+      "nfr": [
+        "Edits efficient on 10 MB files (rope or piece table)",
+        "New command types without touching undo stack"
+      ],
+      "constraints": [
+        "Single user, single document"
+      ],
+      "edge": [
+        "Undo after save",
+        "Redo after new edit (redo stack cleared)",
+        "Replace all with overlapping matches"
+      ],
+      "behavior": [
+        "Every edit is a Command with execute/undo"
+      ],
+      "concepts": [
+        "Command pattern",
+        "Memento",
+        "Piece table / rope"
+      ],
+      "patterns": [
+        "Command",
+        "Memento",
+        "Iterator"
+      ],
+      "followups": [
+        "Multiple cursors",
+        "Collaborative editing"
+      ],
+      "clar": [
+        [
+          "Undo granularity?",
+          "Group consecutive typing."
+        ]
+      ],
+      "track": "extended",
+      "num": 25,
+      "path": "problems/L2-design-patterns/25-text-editor"
+    },
+    {
+      "slug": "expression-evaluator",
+      "title": "Calculator & Expression Evaluator",
+      "level": 2,
+      "difficulty": "Medium",
+      "minutes": 40,
+      "statement": "Design a calculator library that parses and evaluates arithmetic expressions with operators, precedence, parentheses, variables and functions, and can be extended with new operators and functions.",
+      "fr": [
+        "Tokenise and parse to an AST",
+        "+ − × ÷ ^ %, unary minus, parentheses",
+        "Variables from a context",
+        "Built-in functions (min, max, sqrt) and user-registered functions",
+        "Clear error messages with position",
+        "Pretty-print expression"
+      ],
+      "nfr": [
+        "Adding an operator = registering it",
+        "Evaluation separate from parsing"
+      ],
+      "constraints": [
+        "Expressions up to 10k chars"
+      ],
+      "edge": [
+        "Division by zero",
+        "Unknown variable",
+        "Mismatched parentheses",
+        "Right-associative exponent"
+      ],
+      "behavior": [
+        "parse returns AST or ParseError(position)"
+      ],
+      "concepts": [
+        "Interpreter",
+        "Composite AST",
+        "Visitor for evaluate/print"
+      ],
+      "patterns": [
+        "Interpreter",
+        "Composite",
+        "Visitor",
+        "Registry"
+      ],
+      "followups": [
+        "Symbolic differentiation",
+        "Units of measure"
+      ],
+      "clar": [
+        [
+          "Functions?",
+          "Yes, extensible."
+        ]
+      ],
+      "track": "extended",
+      "num": 26,
+      "path": "problems/L2-design-patterns/26-expression-evaluator"
+    },
+    {
+      "slug": "document-exporter",
+      "title": "Report Generator & Exporter",
+      "level": 2,
+      "difficulty": "Medium",
+      "minutes": 40,
+      "statement": "Design a library that builds structured reports (headings, paragraphs, tables, images, charts) and exports them to multiple formats (HTML, Markdown, PDF, CSV for tables) without the report model knowing about formats.",
+      "fr": [
+        "Report model as a tree of elements",
+        "Fluent builder",
+        "Exporters per format",
+        "Styling themes",
+        "Partial export (only tables to CSV)",
+        "Streaming export for large tables"
+      ],
+      "nfr": [
+        "New format without changing elements (or vice versa, explain trade-off)",
+        "Memory bounded for 1M-row tables"
+      ],
+      "constraints": [
+        "Up to 1M table rows"
+      ],
+      "edge": [
+        "Element unsupported by a format (image in CSV)",
+        "Nested tables"
+      ],
+      "behavior": [
+        "export(report, format) returns a stream"
+      ],
+      "concepts": [
+        "Visitor vs polymorphism trade-off",
+        "Builder",
+        "Composite"
+      ],
+      "patterns": [
+        "Visitor",
+        "Composite",
+        "Builder",
+        "Template method"
+      ],
+      "followups": [
+        "Scheduled reports by email"
+      ],
+      "clar": [
+        [
+          "Which formats?",
+          "HTML, Markdown, PDF, CSV."
+        ]
+      ],
+      "track": "extended",
+      "num": 27,
+      "path": "problems/L2-design-patterns/27-document-exporter"
+    },
+    {
+      "slug": "payment-adapter",
+      "title": "Multi-Gateway Payment Adapter",
+      "level": 2,
+      "difficulty": "Medium",
+      "minutes": 40,
+      "statement": "Design a payment module that lets the business integrate several gateways (Razorpay, Stripe, PayU) behind one interface, route payments by rules, and switch providers without touching checkout code.",
+      "fr": [
+        "Unified API: createPayment, capture, refund, status",
+        "Adapters per gateway mapping requests/responses/errors",
+        "Routing rules: by method, amount, success rate, fallback",
+        "Webhook normalisation",
+        "Idempotency keys passed through"
+      ],
+      "nfr": [
+        "New gateway = new adapter + config",
+        "Gateway errors mapped to a common taxonomy"
+      ],
+      "constraints": [
+        "3-5 gateways"
+      ],
+      "edge": [
+        "Gateway timeout with unknown outcome",
+        "Refund on a different gateway than charge",
+        "Duplicate webhooks"
+      ],
+      "behavior": [
+        "Checkout only sees PaymentService"
+      ],
+      "concepts": [
+        "Adapter",
+        "Strategy routing",
+        "Facade",
+        "Error normalisation"
+      ],
+      "patterns": [
+        "Adapter",
+        "Strategy",
+        "Facade",
+        "Factory"
+      ],
+      "followups": [
+        "Smart routing by live success rate"
+      ],
+      "clar": [
+        [
+          "Which operations?",
+          "Create, capture, refund, status."
+        ]
+      ],
+      "track": "extended",
+      "num": 28,
+      "path": "problems/L2-design-patterns/28-payment-adapter"
+    },
+    {
+      "slug": "smart-home",
+      "title": "Smart Home Automation Hub",
+      "level": 2,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design a hub controlling smart devices (lights, thermostat, locks, cameras) from many vendors, with scenes, schedules and if-this-then-that automations.",
+      "fr": [
+        "Device abstraction with capabilities (switchable, dimmable, lockable)",
+        "Vendor adapters",
+        "Scenes: group of device commands",
+        "Schedules",
+        "Automations: trigger → conditions → actions",
+        "Device state change events"
+      ],
+      "nfr": [
+        "New device type via capabilities, not subclasses explosion",
+        "Commands logged and undoable where possible"
+      ],
+      "constraints": [
+        "Up to 200 devices"
+      ],
+      "edge": [
+        "Device offline when scene runs",
+        "Automation loops (A triggers B triggers A)",
+        "Conflicting automations"
+      ],
+      "behavior": [
+        "Scene execution reports per-device result"
+      ],
+      "concepts": [
+        "Interface segregation via capabilities",
+        "Command",
+        "Observer",
+        "Mediator"
+      ],
+      "patterns": [
+        "Command",
+        "Adapter",
+        "Observer",
+        "Mediator",
+        "Composite"
+      ],
+      "followups": [
+        "Voice assistant integration",
+        "Energy usage reports"
+      ],
+      "clar": [
+        [
+          "Multiple vendors?",
+          "Yes."
+        ]
+      ],
+      "track": "extended",
+      "num": 29,
+      "path": "problems/L2-design-patterns/29-smart-home"
+    },
+    {
+      "slug": "chat-room",
+      "title": "Group Chat Application",
+      "level": 2,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design the core object model of a group chat app: users, one-to-one and group conversations, messages with types, delivery/read receipts, typing indicators and mute/admin controls.",
+      "fr": [
+        "Direct and group chats",
+        "Message types: text, image, file, reply, reaction",
+        "Sent/delivered/read status per recipient",
+        "Group admin: add/remove, promote",
+        "Mute and archive",
+        "Message edit/delete within time window"
+      ],
+      "nfr": [
+        "Clients decoupled via mediator/server",
+        "New message type without changing delivery logic"
+      ],
+      "constraints": [
+        "Groups up to 1000"
+      ],
+      "edge": [
+        "Message to removed member",
+        "Edit after window",
+        "Offline recipient"
+      ],
+      "behavior": [
+        "Receipts aggregated per message"
+      ],
+      "concepts": [
+        "Mediator",
+        "Observer",
+        "Polymorphic messages"
+      ],
+      "patterns": [
+        "Mediator",
+        "Observer",
+        "Factory",
+        "Strategy"
+      ],
+      "followups": [
+        "End-to-end encryption",
+        "Threads"
+      ],
+      "clar": [
+        [
+          "Read receipts in groups?",
+          "Per member."
+        ]
+      ],
+      "track": "extended",
+      "num": 30,
+      "path": "problems/L2-design-patterns/30-chat-room"
+    },
+    {
+      "slug": "shape-editor",
+      "title": "Vector Shape Editor",
+      "level": 2,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design a vector drawing editor: shapes (rectangle, circle, line, text), grouping, select/move/resize/rotate, styles, layers, copy-paste duplicating shapes, and undo/redo.",
+      "fr": [
+        "Shape hierarchy with group as a shape",
+        "Transformations apply to groups",
+        "Layers with z-order",
+        "Clone shapes",
+        "Undo/redo",
+        "Export to SVG"
+      ],
+      "nfr": [
+        "New shape without editing tools",
+        "Undo for all operations"
+      ],
+      "constraints": [
+        "Up to 10k shapes"
+      ],
+      "edge": [
+        "Ungroup transformed group",
+        "Delete a shape inside a group"
+      ],
+      "behavior": [
+        "Operations are commands"
+      ],
+      "concepts": [
+        "Composite",
+        "Prototype",
+        "Command",
+        "Visitor (export)"
+      ],
+      "patterns": [
+        "Composite",
+        "Prototype",
+        "Command",
+        "Visitor"
+      ],
+      "followups": [
+        "Snapping and guides"
+      ],
+      "clar": [
+        [
+          "Grouping?",
+          "Yes, nested."
+        ]
+      ],
+      "track": "extended",
+      "num": 31,
+      "path": "problems/L2-design-patterns/31-shape-editor"
+    },
+    {
+      "slug": "config-loader",
+      "title": "Layered Configuration Loader",
+      "level": 2,
+      "difficulty": "Medium",
+      "minutes": 35,
+      "statement": "Design a configuration library that merges config from multiple sources (defaults, files, env vars, CLI, remote store) with precedence, typed access, validation and live reload.",
+      "fr": [
+        "Sources pluggable with precedence order",
+        "Formats: YAML, JSON, .env",
+        "Typed getters with defaults",
+        "Schema validation at startup",
+        "Live reload with change listeners",
+        "Secret values masked in logs"
+      ],
+      "nfr": [
+        "Fail fast on invalid config",
+        "Thread-safe snapshot reads"
+      ],
+      "constraints": [
+        "Nested keys with dot paths"
+      ],
+      "edge": [
+        "Remote source down at startup",
+        "Reload produces invalid config (keep old)"
+      ],
+      "behavior": [
+        "get returns from the highest-precedence source"
+      ],
+      "concepts": [
+        "Chain of Responsibility",
+        "Adapter",
+        "Observer",
+        "Immutable snapshots"
+      ],
+      "patterns": [
+        "Chain of Responsibility",
+        "Adapter",
+        "Observer",
+        "Builder"
+      ],
+      "followups": [
+        "Per-tenant overrides"
+      ],
+      "clar": [
+        [
+          "Live reload?",
+          "Yes."
+        ]
+      ],
+      "track": "extended",
+      "num": 32,
+      "path": "problems/L2-design-patterns/32-config-loader"
+    },
+    {
+      "slug": "music-player",
+      "title": "Music Player & Playlist Queue",
+      "level": 2,
+      "difficulty": "Easy",
+      "minutes": 35,
+      "statement": "Design a music player: library, playlists, play queue with next/previous, shuffle and repeat modes, and player states (stopped, playing, paused, buffering).",
+      "fr": [
+        "Library of songs, albums, artists",
+        "Playlists CRUD and reorder",
+        "Queue: play next, add to queue",
+        "Shuffle (no repeat until all played), repeat one/all",
+        "Player state transitions"
+      ],
+      "nfr": [
+        "Shuffle strategy pluggable",
+        "Iteration independent of collection"
+      ],
+      "constraints": [
+        "10k songs"
+      ],
+      "edge": [
+        "Remove currently playing song",
+        "Previous in shuffle mode",
+        "Empty queue"
+      ],
+      "behavior": [
+        "next() respects repeat and shuffle"
+      ],
+      "concepts": [
+        "Iterator",
+        "State",
+        "Strategy"
+      ],
+      "patterns": [
+        "Iterator",
+        "State",
+        "Strategy",
+        "Observer"
+      ],
+      "followups": [
+        "Crossfade",
+        "Smart playlists"
+      ],
+      "clar": [
+        [
+          "Shuffle semantics?",
+          "Each song once per cycle."
+        ]
+      ],
+      "track": "extended",
+      "num": 33,
+      "path": "problems/L2-design-patterns/33-music-player"
+    },
+    {
+      "slug": "stock-alerts",
+      "title": "Stock Price Alert Service",
+      "level": 2,
+      "difficulty": "Easy",
+      "minutes": 35,
+      "statement": "Design a service where users create alerts on instruments (price crosses level, % change, volume spike) and get notified once when conditions trigger, from a live price feed.",
+      "fr": [
+        "Alert types: above/below price, % change from close, volume > N",
+        "One-time or recurring alerts",
+        "Subscribe to price ticks",
+        "Evaluate only alerts for the ticked instrument",
+        "Notify via channels",
+        "Expire alerts"
+      ],
+      "nfr": [
+        "Evaluation per tick O(alerts on instrument)",
+        "New alert type pluggable"
+      ],
+      "constraints": [
+        "100k alerts, 5k instruments"
+      ],
+      "edge": [
+        "Price gaps past level",
+        "Duplicate trigger on oscillation",
+        "Feed disconnect"
+      ],
+      "behavior": [
+        "One-time alert fires exactly once"
+      ],
+      "concepts": [
+        "Observer",
+        "Strategy/Specification",
+        "Indexing by instrument"
+      ],
+      "patterns": [
+        "Observer",
+        "Strategy",
+        "Factory"
+      ],
+      "followups": [
+        "Composite alerts (AND/OR)",
+        "Indicator-based alerts (RSI)"
+      ],
+      "clar": [
+        [
+          "Recurring alerts?",
+          "Yes, with cooldown."
+        ]
+      ],
+      "track": "extended",
+      "num": 34,
+      "path": "problems/L2-design-patterns/34-stock-alerts"
+    },
+    {
+      "slug": "movie-ticket-booking",
+      "title": "Movie Ticket Booking (BookMyShow)",
+      "level": 3,
+      "difficulty": "Medium",
+      "minutes": 50,
+      "statement": "Design a movie ticket booking system across cities, theatres, screens and shows. Users browse movies, pick a show, select seats on a seat map, hold them while paying, and receive a booking. Thousands of users may compete for the same seats on a blockbuster release, so double booking must be impossible.",
+      "fr": [
+        "City → Theatre → Screen → Seat layout; Movie → Show (screen, start time, pricing)",
+        "Search shows by city, movie, date, language, format",
+        "Seat map with status Available / Held / Booked; seat categories priced differently",
+        "Temporarily hold selected seats for N minutes during payment",
+        "Confirm booking on payment success; release hold on failure or timeout",
+        "Cancel booking with refund policy"
+      ],
+      "nfr": [
+        "No two users ever book the same seat for the same show",
+        "Hold expiry handled automatically",
+        "Seat map read latency under 100 ms",
+        "Booking flow idempotent on retries"
+      ],
+      "constraints": [
+        "Up to 500 seats per screen",
+        "Hold timeout 10 minutes",
+        "Max 10 seats per booking"
+      ],
+      "edge": [
+        "Two users select the same seat simultaneously",
+        "Payment succeeds after hold expired",
+        "User leaves gaps that create single orphan seats",
+        "Show cancelled after bookings",
+        "Partial seat availability in a multi-seat request"
+      ],
+      "behavior": [
+        "holdSeats(showId, seatIds, userId) is all-or-nothing",
+        "confirm(holdId, paymentRef) is idempotent",
+        "Expired holds return seats to Available"
+      ],
+      "concepts": [
+        "Concurrency control: row locks, optimistic versioning, or atomic compare-and-set per seat",
+        "State machine for seat and booking",
+        "Repository/service layering",
+        "Idempotency keys"
+      ],
+      "patterns": [
+        "State",
+        "Strategy (pricing)",
+        "Observer",
+        "Facade"
+      ],
+      "followups": [
+        "Dynamic pricing by demand",
+        "Group booking with adjacency guarantee",
+        "Waitlist when sold out"
+      ],
+      "clar": [
+        [
+          "How long are seats held?",
+          "10 minutes."
+        ],
+        [
+          "Multiple seats all-or-nothing?",
+          "Yes."
+        ],
+        [
+          "What about payment?",
+          "Assume an external gateway that can call back late or twice."
+        ]
+      ],
+      "track": "core",
+      "num": 35,
+      "path": "problems/L3-real-world-systems/35-movie-ticket-booking"
+    },
+    {
+      "slug": "splitwise",
+      "title": "Expense Sharing (Splitwise)",
+      "level": 3,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design an expense sharing app where users record shared expenses in groups or one-to-one, split them equally, by exact amounts, by percentage or by shares, and see who owes whom. Users settle up partially or fully. Show simplified debts that minimise the number of transactions.",
+      "fr": [
+        "Users, groups, expenses with payer(s) and participants",
+        "Split types: Equal, Exact, Percentage, Shares",
+        "Balance sheet per user and per group",
+        "Settle up (record payment)",
+        "Simplify debts within a group",
+        "Edit/delete expense with balance recalculation and activity log"
+      ],
+      "nfr": [
+        "Money stored as integer paise; rounding remainder assigned deterministically",
+        "Balances always sum to zero",
+        "New split types without editing existing ones"
+      ],
+      "constraints": [
+        "Groups up to 50 members",
+        "Single currency per group"
+      ],
+      "edge": [
+        "Percentages not summing to 100",
+        "Exact amounts not matching total",
+        "Rs 100 split three ways",
+        "Multiple payers for one expense",
+        "Member leaves group with non-zero balance"
+      ],
+      "behavior": [
+        "addExpense validates split and updates balances atomically",
+        "simplify() returns a minimal list of (from, to, amount)"
+      ],
+      "concepts": [
+        "Strategy for split types",
+        "Validation",
+        "Graph / greedy debt simplification",
+        "Event log for audit"
+      ],
+      "patterns": [
+        "Strategy",
+        "Factory",
+        "Observer"
+      ],
+      "followups": [
+        "Multi-currency with FX",
+        "Recurring expenses",
+        "Receipt OCR itemised splits"
+      ],
+      "clar": [
+        [
+          "Split types?",
+          "Equal, exact, percentage, shares."
+        ],
+        [
+          "Simplify debts?",
+          "Yes, within a group."
+        ],
+        [
+          "Rounding?",
+          "Paise precision; you decide who absorbs remainder."
+        ]
+      ],
+      "track": "core",
+      "num": 36,
+      "path": "problems/L3-real-world-systems/36-splitwise"
+    },
+    {
+      "slug": "hotel-booking",
+      "title": "Hotel Reservation System",
+      "level": 3,
+      "difficulty": "Medium",
+      "minutes": 50,
+      "statement": "Design a reservation system for a hotel chain. Guests search availability by city and dates, book room types (not specific rooms), modify or cancel bookings, check in to be allocated an actual room, and check out with a final bill including extras. Overbooking policies and rate plans vary per hotel.",
+      "fr": [
+        "Hotels, room types, physical rooms",
+        "Availability search by date range and guests",
+        "Book a room type for a date range with a rate plan (refundable, non-refundable, breakfast)",
+        "Modify dates / cancel with policy-based fees",
+        "Check-in allocates a specific room; check-out generates invoice with extras",
+        "Configurable overbooking percentage"
+      ],
+      "nfr": [
+        "Inventory per room type per night must be consistent under concurrency",
+        "Pricing rules configurable",
+        "Reads (search) far exceed writes"
+      ],
+      "constraints": [
+        "Up to 5000 hotels, 365-day booking window"
+      ],
+      "edge": [
+        "Booking spans a night where inventory is 0",
+        "Modification that shortens or extends stay",
+        "No-show",
+        "Early check-in / late check-out",
+        "Overbooked guest must be walked to another hotel"
+      ],
+      "behavior": [
+        "Inventory decremented per night atomically for the full range",
+        "Cancel restores inventory for remaining nights"
+      ],
+      "concepts": [
+        "Inventory-per-night model",
+        "Strategy for pricing/cancellation",
+        "State machine for reservation"
+      ],
+      "patterns": [
+        "Strategy",
+        "State",
+        "Builder",
+        "Repository"
+      ],
+      "followups": [
+        "Channel manager sync with OTAs",
+        "Loyalty points and upgrades"
+      ],
+      "clar": [
+        [
+          "Book specific rooms or types?",
+          "Room types; room assigned at check-in."
+        ],
+        [
+          "Overbooking allowed?",
+          "Configurable per hotel."
+        ]
+      ],
+      "track": "core",
+      "num": 37,
+      "path": "problems/L3-real-world-systems/37-hotel-booking"
+    },
+    {
+      "slug": "food-delivery",
+      "title": "Food Delivery (Zomato/Swiggy)",
+      "level": 3,
+      "difficulty": "Hard",
+      "minutes": 55,
+      "statement": "Design the order lifecycle of a food delivery platform: restaurants and menus, customer ordering, restaurant acceptance, delivery partner assignment, live status, and cancellation/refunds. Multiple actors act on the same order, so lifecycle rules must be explicit.",
+      "fr": [
+        "Restaurants with menus, availability windows, item customisations",
+        "Place order with cart, address, payment",
+        "Order states: Placed → Accepted → Preparing → ReadyForPickup → PickedUp → Delivered; plus Cancelled, Rejected",
+        "Assign delivery partner with a pluggable strategy (nearest, batched)",
+        "Notify all parties on each state change",
+        "Cancellation rules and refund amount depend on state"
+      ],
+      "nfr": [
+        "Illegal transitions impossible",
+        "Assignment strategy swappable",
+        "Each state change is auditable"
+      ],
+      "constraints": [
+        "Partner can carry up to 2 orders",
+        "Restaurant must accept within 3 minutes"
+      ],
+      "edge": [
+        "Restaurant rejects after payment",
+        "No partner available",
+        "Partner cancels after pickup",
+        "Customer cancels while food is being prepared",
+        "Item becomes unavailable after order placed"
+      ],
+      "behavior": [
+        "order.transition(event, actor) validates actor permission and current state"
+      ],
+      "concepts": [
+        "State machine with guards",
+        "Observer",
+        "Strategy",
+        "Role-based actions"
+      ],
+      "patterns": [
+        "State",
+        "Observer",
+        "Strategy",
+        "Mediator"
+      ],
+      "followups": [
+        "Order batching",
+        "ETA prediction service",
+        "Scheduled orders"
+      ],
+      "clar": [
+        [
+          "Who can cancel?",
+          "Customer, restaurant, support, each with rules."
+        ],
+        [
+          "Delivery assignment?",
+          "Nearest available partner for now."
+        ]
+      ],
+      "track": "core",
+      "num": 38,
+      "path": "problems/L3-real-world-systems/38-food-delivery"
+    },
+    {
+      "slug": "ride-hailing",
+      "title": "Ride Hailing (Uber/Ola)",
+      "level": 3,
+      "difficulty": "Hard",
+      "minutes": 55,
+      "statement": "Design the core ride booking flow: riders request rides with pickup and drop, the system finds nearby drivers of the requested vehicle class, offers the ride, the driver accepts, trip progresses, and fare is computed with surge. Model drivers, riders, trips and matching.",
+      "fr": [
+        "Riders and drivers with location updates",
+        "Ride request with vehicle class (Auto, Mini, Sedan, SUV)",
+        "Find nearby available drivers (spatial index) and offer sequentially or broadcast",
+        "Trip states: Requested, DriverAssigned, Arrived, InProgress, Completed, Cancelled",
+        "Fare = base + distance + time, × surge multiplier",
+        "Ratings for both sides"
+      ],
+      "nfr": [
+        "A driver cannot be assigned two trips simultaneously",
+        "Matching strategy pluggable",
+        "Location updates high frequency, must be cheap"
+      ],
+      "constraints": [
+        "Location every 4 seconds per driver",
+        "Offer timeout 15 seconds"
+      ],
+      "edge": [
+        "Driver accepts after offer expired",
+        "Rider cancels after driver arrives (fee)",
+        "No drivers in range",
+        "Driver goes offline mid-trip"
+      ],
+      "behavior": [
+        "requestRide returns a Trip in Requested; matching runs async; rider notified on assignment"
+      ],
+      "concepts": [
+        "Geohash / quadtree indexing",
+        "State",
+        "Strategy (matching, pricing)",
+        "Concurrency on driver availability"
+      ],
+      "patterns": [
+        "State",
+        "Strategy",
+        "Observer",
+        "Factory"
+      ],
+      "followups": [
+        "Pool rides",
+        "Scheduled rides",
+        "Driver incentives"
+      ],
+      "clar": [
+        [
+          "Matching?",
+          "Nearest driver first; offer one driver at a time."
+        ],
+        [
+          "Surge?",
+          "Multiplier per area, computed elsewhere."
+        ]
+      ],
+      "track": "core",
+      "num": 39,
+      "path": "problems/L3-real-world-systems/39-ride-hailing"
+    },
+    {
+      "slug": "chess",
+      "title": "Chess Game",
+      "level": 3,
+      "difficulty": "Medium",
+      "minutes": 50,
+      "statement": "Design a two-player chess engine that validates moves for all pieces including special moves (castling, en passant, promotion), detects check, checkmate and stalemate, supports clocks, and keeps the full move history in standard notation.",
+      "fr": [
+        "Board, pieces, players, game",
+        "Legal move generation per piece",
+        "Special moves: castling, en passant, promotion",
+        "Check, checkmate, stalemate, draw by repetition/50-move/insufficient material",
+        "Move history in algebraic notation and undo",
+        "Clocks with increments; resign and draw offers"
+      ],
+      "nfr": [
+        "Adding a variant piece doesn't touch others",
+        "Move validation isolated from UI"
+      ],
+      "constraints": [
+        "8×8 board, standard rules"
+      ],
+      "edge": [
+        "Move that exposes own king",
+        "Castling through check",
+        "Promotion choice",
+        "Time runs out with opponent having insufficient material"
+      ],
+      "behavior": [
+        "move(from, to, promotion?) returns MoveResult or IllegalMove with reason"
+      ],
+      "concepts": [
+        "Polymorphism per piece",
+        "Command for undo",
+        "Strategy for move rules",
+        "Memento for state"
+      ],
+      "patterns": [
+        "Strategy",
+        "Command",
+        "Memento",
+        "Factory"
+      ],
+      "followups": [
+        "Chess960",
+        "Online play with spectators"
+      ],
+      "clar": [
+        [
+          "Special moves required?",
+          "Yes, all standard rules."
+        ],
+        [
+          "Clocks?",
+          "Yes, with increment."
+        ]
+      ],
+      "track": "core",
+      "num": 40,
+      "path": "problems/L3-real-world-systems/40-chess"
+    },
+    {
+      "slug": "cache-eviction",
+      "title": "Generic Cache with Pluggable Eviction (LRU/LFU)",
+      "level": 3,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design a generic in-process key-value cache with configurable capacity and pluggable eviction policies (LRU, LFU, FIFO, TTL). It must be thread-safe, expose hit/miss metrics, and support loaders that populate on miss.",
+      "fr": [
+        "get, put, remove, with O(1) average for LRU/LFU",
+        "Eviction policy chosen at construction",
+        "Per-entry TTL",
+        "Read-through loader with single-flight (one load per key at a time)",
+        "Eviction listeners",
+        "Metrics: hits, misses, evictions"
+      ],
+      "nfr": [
+        "Thread-safe with low contention (segment/striped locks)",
+        "Policies testable in isolation",
+        "No memory leak from expired entries"
+      ],
+      "constraints": [
+        "Up to 1M entries"
+      ],
+      "edge": [
+        "Capacity 0",
+        "Loader throws",
+        "Concurrent gets on same missing key",
+        "Update existing key (does it count as use?)",
+        "TTL expiry while being read"
+      ],
+      "behavior": [
+        "get on missing key with loader calls loader once even under concurrent requests"
+      ],
+      "concepts": [
+        "Doubly linked list + hashmap",
+        "Frequency buckets",
+        "Strategy",
+        "Lock striping",
+        "Single-flight"
+      ],
+      "patterns": [
+        "Strategy",
+        "Decorator (metrics)",
+        "Observer (listeners)",
+        "Builder"
+      ],
+      "followups": [
+        "Write-behind persistence",
+        "Size-based (bytes) eviction",
+        "Distributed cache with consistent hashing"
+      ],
+      "clar": [
+        [
+          "Which policies?",
+          "LRU and LFU at least; pluggable."
+        ],
+        [
+          "Concurrency?",
+          "Many threads."
+        ]
+      ],
+      "track": "core",
+      "num": 41,
+      "path": "problems/L3-real-world-systems/41-cache-eviction"
+    },
+    {
+      "slug": "order-management",
+      "title": "Order Management System (E-commerce)",
+      "level": 3,
+      "difficulty": "Hard",
+      "minutes": 55,
+      "statement": "Design the order management module for an online print/merchandise store. Orders contain multiple items, each going through its own production and shipping flow; customers can cancel or modify items until production starts; payments, refunds and store credit (wallet) must stay consistent; customer service agents can act on behalf of customers.",
+      "fr": [
+        "Order with multiple line items; each item has independent status (Pending, InProduction, Shipped, Delivered, Cancelled)",
+        "Order status derived from item statuses",
+        "Cancel/modify item until production starts; partial refund to original method or wallet",
+        "Customer service actions with audit (who, why)",
+        "Emit domain events to other services (inventory, shipping, notifications)",
+        "Idempotent handling of inbound events from production/shipping"
+      ],
+      "nfr": [
+        "Every money movement traceable",
+        "Event consumers idempotent (at-least-once delivery)",
+        "Status rules extensible per product type"
+      ],
+      "constraints": [
+        "Up to 100 items per order",
+        "Inbound events can arrive out of order or duplicated"
+      ],
+      "edge": [
+        "Shipping event arrives before production event",
+        "Refund requested twice",
+        "Partial shipment then cancellation of the rest",
+        "Price adjustments after order"
+      ],
+      "behavior": [
+        "applyEvent(event) is idempotent and order-tolerant",
+        "Refund never exceeds captured amount minus previous refunds"
+      ],
+      "concepts": [
+        "Aggregate root",
+        "Derived state",
+        "Domain events, outbox pattern",
+        "Idempotent consumers",
+        "State per line item"
+      ],
+      "patterns": [
+        "State",
+        "Observer/Domain events",
+        "Strategy",
+        "Command"
+      ],
+      "followups": [
+        "Split orders across warehouses",
+        "Order editing with re-pricing"
+      ],
+      "clar": [
+        [
+          "Item-level or order-level status?",
+          "Item-level; order status derived."
+        ],
+        [
+          "Refund destination?",
+          "Original method or wallet credit, customer chooses."
+        ],
+        [
+          "Events reliable?",
+          "At-least-once, possibly out of order."
+        ]
+      ],
+      "track": "core",
+      "num": 42,
+      "path": "problems/L3-real-world-systems/42-order-management"
+    },
+    {
+      "slug": "airline-booking",
+      "title": "Airline Reservation System",
+      "level": 3,
+      "difficulty": "Hard",
+      "minutes": 55,
+      "statement": "Design an airline reservation system: flights and schedules, aircraft seat maps, fare classes with inventory, multi-leg itineraries, booking with passengers, seat selection, check-in and cancellations.",
+      "fr": [
+        "Flights, schedules, aircraft with seat maps",
+        "Fare classes (buckets) with inventory and rules",
+        "Search one-way/round-trip/multi-city with connections",
+        "Book itinerary (all legs or none) with passengers (PNR)",
+        "Seat selection and paid extras",
+        "Web check-in window; boarding pass",
+        "Cancel/change with fare-rule fees"
+      ],
+      "nfr": [
+        "Atomic multi-leg inventory decrement",
+        "Fare rules data-driven"
+      ],
+      "constraints": [
+        "Max 9 passengers per booking",
+        "Hold for 15 minutes"
+      ],
+      "edge": [
+        "One leg sells out during booking",
+        "Schedule change after booking",
+        "Infant without seat",
+        "Overbooking and denied boarding"
+      ],
+      "behavior": [
+        "book is all-or-nothing across legs"
+      ],
+      "concepts": [
+        "Inventory buckets",
+        "Aggregate (PNR)",
+        "Rules as data"
+      ],
+      "patterns": [
+        "Strategy",
+        "State",
+        "Builder",
+        "Specification"
+      ],
+      "followups": [
+        "Codeshare flights",
+        "Loyalty miles"
+      ],
+      "clar": [
+        [
+          "Connections?",
+          "Yes, with minimum connection time."
+        ]
+      ],
+      "track": "extended",
+      "num": 43,
+      "path": "problems/L3-real-world-systems/43-airline-booking"
+    },
+    {
+      "slug": "calendar-scheduler",
+      "title": "Calendar & Meeting Scheduler",
+      "level": 3,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design a calendar system like Google Calendar: events, recurring events with exceptions, invitations and RSVPs, free/busy lookup, meeting room booking and finding common free slots.",
+      "fr": [
+        "Create events with attendees, rooms, time zone",
+        "Recurrence rules (RRULE subset) with edited/cancelled occurrences",
+        "Invitations and RSVP",
+        "Free/busy for users and rooms",
+        "Suggest slots where all required attendees and a room are free",
+        "Reminders"
+      ],
+      "nfr": [
+        "Expand recurrences lazily",
+        "Room double booking impossible",
+        "DST correct"
+      ],
+      "constraints": [
+        "Up to 50 attendees"
+      ],
+      "edge": [
+        "Editing this and following occurrences",
+        "Organizer leaves company",
+        "Attendees in different time zones"
+      ],
+      "behavior": [
+        "findSlots returns ranked candidate slots"
+      ],
+      "concepts": [
+        "Interval merging",
+        "Recurrence expansion",
+        "Exceptions modelling"
+      ],
+      "patterns": [
+        "Strategy",
+        "Observer",
+        "Iterator",
+        "Composite"
+      ],
+      "followups": [
+        "Working hours and focus time",
+        "External calendar sync"
+      ],
+      "clar": [
+        [
+          "Recurring events?",
+          "Yes, with exceptions."
+        ]
+      ],
+      "track": "extended",
+      "num": 44,
+      "path": "problems/L3-real-world-systems/44-calendar-scheduler"
+    },
+    {
+      "slug": "kanban-board",
+      "title": "Project Board (Trello/Jira)",
+      "level": 3,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design a project tracking tool: workspaces, boards, columns, cards/issues with assignees, labels, comments, checklists, custom workflows with allowed transitions, and an activity log.",
+      "fr": [
+        "Boards with columns mapped to workflow statuses",
+        "Cards with fields, assignee, labels, due date",
+        "Custom workflow: allowed transitions and per-transition validators",
+        "Move and reorder cards",
+        "Comments and mentions",
+        "Activity log",
+        "Board-level permissions"
+      ],
+      "nfr": [
+        "Ordering efficient (fractional indices)",
+        "Workflow configurable per project"
+      ],
+      "constraints": [
+        "10k cards per board"
+      ],
+      "edge": [
+        "Concurrent reorder by two users",
+        "Deleting a column with cards",
+        "Invalid transition"
+      ],
+      "behavior": [
+        "move validates transition and records activity"
+      ],
+      "concepts": [
+        "State machine as config",
+        "Fractional indexing",
+        "Observer"
+      ],
+      "patterns": [
+        "State",
+        "Observer",
+        "Command",
+        "Chain of Responsibility"
+      ],
+      "followups": [
+        "Sprints and story points",
+        "Automation rules"
+      ],
+      "clar": [
+        [
+          "Custom workflows?",
+          "Yes per project."
+        ]
+      ],
+      "track": "extended",
+      "num": 45,
+      "path": "problems/L3-real-world-systems/45-kanban-board"
+    },
+    {
+      "slug": "stack-overflow",
+      "title": "Q&A Platform (Stack Overflow)",
+      "level": 3,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design a Q&A site: questions, answers, comments, voting, accepted answers, tags, reputation with privileges, bounties, and moderation (flags, close votes).",
+      "fr": [
+        "Post question with tags; answers; comments",
+        "Up/down votes with rules",
+        "Accept answer",
+        "Reputation changes per event",
+        "Privileges unlocked by reputation",
+        "Bounties with expiry",
+        "Flags and close votes",
+        "Search by tag and text"
+      ],
+      "nfr": [
+        "Reputation rules configurable",
+        "Vote integrity (one per user)"
+      ],
+      "constraints": [
+        "Millions of posts"
+      ],
+      "edge": [
+        "Vote reversal",
+        "Self-voting",
+        "Deleted post reputation recalculation"
+      ],
+      "behavior": [
+        "Each action emits a reputation event"
+      ],
+      "concepts": [
+        "Event-driven reputation",
+        "Strategy for rules",
+        "Privilege checks"
+      ],
+      "patterns": [
+        "Observer",
+        "Strategy",
+        "Chain of Responsibility"
+      ],
+      "followups": [
+        "Badges",
+        "Edit suggestions review queue"
+      ],
+      "clar": [
+        [
+          "Reputation?",
+          "Yes, with privileges."
+        ]
+      ],
+      "track": "extended",
+      "num": 46,
+      "path": "problems/L3-real-world-systems/46-stack-overflow"
+    },
+    {
+      "slug": "social-feed",
+      "title": "Social Media Feed",
+      "level": 3,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design the object model and feed generation of a social app: users, follows, posts (text, image, poll), likes, comments, and a personalised home feed with ranking, privacy settings and blocking.",
+      "fr": [
+        "Follow/unfollow, block",
+        "Post types; visibility (public, followers, close friends)",
+        "Like and comment",
+        "Home feed: merge followed users' posts, ranked",
+        "Pagination with cursors",
+        "Notifications"
+      ],
+      "nfr": [
+        "Ranking strategy pluggable",
+        "Fan-out on write vs read trade-off discussed and abstracted"
+      ],
+      "constraints": [
+        "Celebrities with 10M followers"
+      ],
+      "edge": [
+        "Blocked user content",
+        "Deleted post in cached feeds",
+        "Visibility change after posting"
+      ],
+      "behavior": [
+        "getFeed respects privacy and blocks"
+      ],
+      "concepts": [
+        "Fan-out strategies",
+        "Cursor pagination",
+        "Strategy ranking"
+      ],
+      "patterns": [
+        "Strategy",
+        "Observer",
+        "Factory",
+        "Iterator"
+      ],
+      "followups": [
+        "Stories with expiry",
+        "Ads injection"
+      ],
+      "clar": [
+        [
+          "Ranking?",
+          "Recency for now; pluggable."
+        ]
+      ],
+      "track": "extended",
+      "num": 47,
+      "path": "problems/L3-real-world-systems/47-social-feed"
+    },
+    {
+      "slug": "online-auction",
+      "title": "Online Auction System",
+      "level": 3,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design an auction platform: sellers list items with start price, reserve and end time; bidders place bids with increments; proxy (auto) bidding; anti-sniping extension; winner determination and payment.",
+      "fr": [
+        "Create auction with reserve and buy-now",
+        "Place bid with minimum increment",
+        "Proxy bidding up to a max",
+        "Anti-sniping: extend if bid in last N minutes",
+        "Close auction, determine winner if reserve met",
+        "Notify outbid bidders"
+      ],
+      "nfr": [
+        "Bids on same auction serialised",
+        "Auction types pluggable (English, Dutch, sealed)"
+      ],
+      "constraints": [
+        "Hot auctions with 100 bids/sec"
+      ],
+      "edge": [
+        "Simultaneous equal bids",
+        "Seller bidding on own item",
+        "Winner fails to pay"
+      ],
+      "behavior": [
+        "placeBid returns accepted with current price or rejection"
+      ],
+      "concepts": [
+        "Concurrency per aggregate",
+        "Strategy for auction types",
+        "State"
+      ],
+      "patterns": [
+        "Strategy",
+        "State",
+        "Observer"
+      ],
+      "followups": [
+        "Sealed-bid second-price auctions"
+      ],
+      "clar": [
+        [
+          "Proxy bidding?",
+          "Yes."
+        ]
+      ],
+      "track": "extended",
+      "num": 48,
+      "path": "problems/L3-real-world-systems/48-online-auction"
+    },
+    {
+      "slug": "online-judge",
+      "title": "Online Coding Judge (LeetCode)",
+      "level": 3,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design a coding judge: problems with test cases, submissions in multiple languages, a queue of sandboxed judge workers, verdicts (AC, WA, TLE, MLE, RE, CE), contests with leaderboards.",
+      "fr": [
+        "Problems with hidden/sample tests, limits",
+        "Submit code; queued; judged",
+        "Language runners pluggable",
+        "Verdict per test and overall",
+        "Contests with start/end and penalty scoring",
+        "Live leaderboard"
+      ],
+      "nfr": [
+        "Isolation of untrusted code (abstracted)",
+        "Workers scale horizontally",
+        "Fair queueing during contests"
+      ],
+      "constraints": [
+        "10k submissions per minute in contests"
+      ],
+      "edge": [
+        "Worker crash mid-judge",
+        "Tests updated after submissions",
+        "Infinite output"
+      ],
+      "behavior": [
+        "Submission status: Queued → Running → Verdict"
+      ],
+      "concepts": [
+        "Producer-consumer",
+        "Strategy (runners, scoring)",
+        "State"
+      ],
+      "patterns": [
+        "Strategy",
+        "State",
+        "Observer",
+        "Command"
+      ],
+      "followups": [
+        "Plagiarism checks",
+        "Interactive problems"
+      ],
+      "clar": [
+        [
+          "Sandboxing detail?",
+          "Abstract it behind an interface."
+        ]
+      ],
+      "track": "extended",
+      "num": 49,
+      "path": "problems/L3-real-world-systems/49-online-judge"
+    },
+    {
+      "slug": "hospital-appointments",
+      "title": "Hospital Appointment Management",
+      "level": 3,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design appointment booking for a hospital network: doctors with specialties and schedules, slot generation, booking/rescheduling, walk-in tokens, priorities for emergencies, and reminders.",
+      "fr": [
+        "Doctor schedules with recurring availability and leaves",
+        "Generate slots of variable length per consultation type",
+        "Book, reschedule, cancel",
+        "Walk-in token queue merged with appointments",
+        "Emergency priority overrides",
+        "Reminders and no-show tracking"
+      ],
+      "nfr": [
+        "No double booking",
+        "Slot policies configurable"
+      ],
+      "constraints": [
+        "500 doctors"
+      ],
+      "edge": [
+        "Doctor leave after bookings exist",
+        "Running late cascades",
+        "Same patient double booked across doctors"
+      ],
+      "behavior": [
+        "Leave triggers rescheduling offers"
+      ],
+      "concepts": [
+        "Schedule modelling",
+        "Priority queues",
+        "Observer"
+      ],
+      "patterns": [
+        "Strategy",
+        "Observer",
+        "State"
+      ],
+      "followups": [
+        "Teleconsultation",
+        "Insurance pre-auth"
+      ],
+      "clar": [
+        [
+          "Walk-ins?",
+          "Yes, token based."
+        ]
+      ],
+      "track": "extended",
+      "num": 50,
+      "path": "problems/L3-real-world-systems/50-hospital-appointments"
+    },
+    {
+      "slug": "warehouse-inventory",
+      "title": "Warehouse Inventory Management",
+      "level": 3,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design inventory management across warehouses: SKUs, bins, stock levels by location, inbound receipts, reservations for orders, picking, transfers, cycle counts, and low-stock reorder.",
+      "fr": [
+        "SKUs, warehouses, bins",
+        "Stock states: on-hand, reserved, available, damaged",
+        "Receive goods; put-away",
+        "Reserve for order; allocate from best warehouse",
+        "Pick, pack, ship; release reservations on cancel",
+        "Transfers and cycle count adjustments",
+        "Reorder point alerts"
+      ],
+      "nfr": [
+        "Available never negative under concurrency",
+        "Every stock movement is a ledger entry"
+      ],
+      "constraints": [
+        "1M SKUs, 20 warehouses"
+      ],
+      "edge": [
+        "Count discrepancy found",
+        "Reservation expiry",
+        "Partial pick"
+      ],
+      "behavior": [
+        "Stock = sum of movements"
+      ],
+      "concepts": [
+        "Movement ledger",
+        "Allocation strategy",
+        "Optimistic locking"
+      ],
+      "patterns": [
+        "Strategy",
+        "Command",
+        "Observer",
+        "Repository"
+      ],
+      "followups": [
+        "Batch/expiry tracking (FEFO)",
+        "Serial numbers"
+      ],
+      "clar": [
+        [
+          "Multi-warehouse?",
+          "Yes."
+        ]
+      ],
+      "track": "extended",
+      "num": 51,
+      "path": "problems/L3-real-world-systems/51-warehouse-inventory"
+    },
+    {
+      "slug": "support-ticketing",
+      "title": "Customer Support Ticketing System",
+      "level": 3,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design a helpdesk system: tickets from email/chat/web, auto-assignment to agents by skill and load, SLAs with escalation, statuses, internal notes, canned responses, and CSAT surveys.",
+      "fr": [
+        "Create tickets from multiple channels",
+        "Assignment strategies: round robin, skill-based, least loaded",
+        "Statuses with transitions",
+        "SLA timers (first response, resolution) pausing on Waiting-on-customer",
+        "Escalation chain on breach",
+        "Merge duplicate tickets",
+        "CSAT after resolution"
+      ],
+      "nfr": [
+        "SLA policies configurable per priority/customer tier",
+        "Audit of every action"
+      ],
+      "constraints": [
+        "500 agents"
+      ],
+      "edge": [
+        "Agent goes offline with open tickets",
+        "Customer replies to closed ticket",
+        "Merging tickets with different SLAs"
+      ],
+      "behavior": [
+        "SLA breach emits escalation event"
+      ],
+      "concepts": [
+        "Timers",
+        "Strategy",
+        "State",
+        "Chain of Responsibility"
+      ],
+      "patterns": [
+        "Strategy",
+        "State",
+        "Chain of Responsibility",
+        "Observer"
+      ],
+      "followups": [
+        "AI-suggested replies",
+        "Customer portal"
+      ],
+      "clar": [
+        [
+          "SLA pause rules?",
+          "Pause while waiting on customer."
+        ]
+      ],
+      "track": "extended",
+      "num": 52,
+      "path": "problems/L3-real-world-systems/52-support-ticketing"
+    },
+    {
+      "slug": "music-streaming",
+      "title": "Music Streaming Service (Spotify)",
+      "level": 3,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design the core domain of a music streaming service: catalogue, user library, playlists (collaborative), playback sessions across devices, subscription tiers controlling features, and play-count royalties.",
+      "fr": [
+        "Catalogue: tracks, albums, artists, licensing per region",
+        "Library: liked songs, follows",
+        "Playlists, collaborative editing",
+        "Playback session; transfer between devices",
+        "Tier rules: ads, skips limit, offline",
+        "Play events for royalties (≥30 s)"
+      ],
+      "nfr": [
+        "Tier rules pluggable",
+        "Region licensing enforced"
+      ],
+      "constraints": [
+        "100M tracks"
+      ],
+      "edge": [
+        "Track removed from region while in playlist",
+        "Free tier skip limit",
+        "Two devices playing"
+      ],
+      "behavior": [
+        "play checks licence and tier"
+      ],
+      "concepts": [
+        "Policy/Strategy by tier",
+        "Observer for events"
+      ],
+      "patterns": [
+        "Strategy",
+        "Observer",
+        "State",
+        "Proxy"
+      ],
+      "followups": [
+        "Podcasts",
+        "Family plan"
+      ],
+      "clar": [
+        [
+          "Tiers?",
+          "Free and premium."
+        ]
+      ],
+      "track": "extended",
+      "num": 53,
+      "path": "problems/L3-real-world-systems/53-music-streaming"
+    },
+    {
+      "slug": "bike-sharing",
+      "title": "Bike / Scooter Sharing",
+      "level": 3,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design a dockless bike/scooter sharing system: vehicles with GPS and battery, unlock via QR, ride tracking, pricing per minute with unlock fee, geofenced parking zones, and maintenance flows.",
+      "fr": [
+        "Find nearby vehicles",
+        "Reserve for 10 minutes",
+        "Unlock, ride, lock; trip records",
+        "Pricing: unlock fee + per-minute, passes",
+        "Geofence: no-parking zones and speed limits",
+        "Battery and damage reports trigger maintenance"
+      ],
+      "nfr": [
+        "Vehicle used by one rider at a time",
+        "Pricing/zone rules configurable"
+      ],
+      "constraints": [
+        "50k vehicles"
+      ],
+      "edge": [
+        "Lock fails in no-parking zone",
+        "Battery dies mid-ride",
+        "Lost connectivity at lock"
+      ],
+      "behavior": [
+        "Trip end validates zone"
+      ],
+      "concepts": [
+        "State machine for vehicle",
+        "Strategy pricing",
+        "Geo indexing"
+      ],
+      "patterns": [
+        "State",
+        "Strategy",
+        "Observer"
+      ],
+      "followups": [
+        "Group rides",
+        "Rebalancing tasks"
+      ],
+      "clar": [
+        [
+          "Docks?",
+          "Dockless."
+        ]
+      ],
+      "track": "extended",
+      "num": 54,
+      "path": "problems/L3-real-world-systems/54-bike-sharing"
+    },
+    {
+      "slug": "restaurant-pos",
+      "title": "Restaurant POS & Kitchen Display",
+      "level": 3,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design a point-of-sale system for a restaurant: tables, orders with modifiers, routing items to kitchen stations, kitchen display status, splitting bills, taxes, tips and payments.",
+      "fr": [
+        "Menu with modifiers and combos",
+        "Open order per table; add items; course firing",
+        "Route items to stations (grill, bar)",
+        "Kitchen display: item statuses",
+        "Split bill by item or equally; multiple payments",
+        "Taxes and service charge",
+        "Void with manager approval"
+      ],
+      "nfr": [
+        "Station routing configurable",
+        "Offline-tolerant"
+      ],
+      "constraints": [
+        "50 tables"
+      ],
+      "edge": [
+        "Item voided after firing",
+        "Table transfer",
+        "Partial payment then split"
+      ],
+      "behavior": [
+        "Bill totals reconcile with payments"
+      ],
+      "concepts": [
+        "Composite (combos)",
+        "Observer",
+        "Strategy"
+      ],
+      "patterns": [
+        "Composite",
+        "Observer",
+        "Strategy",
+        "Command"
+      ],
+      "followups": [
+        "Online orders merge",
+        "Inventory deduction by recipe"
+      ],
+      "clar": [
+        [
+          "Bill splitting?",
+          "Yes, by item or equal."
+        ]
+      ],
+      "track": "extended",
+      "num": 55,
+      "path": "problems/L3-real-world-systems/55-restaurant-pos"
+    },
+    {
+      "slug": "parcel-locker",
+      "title": "Parcel Locker System (Amazon Locker)",
+      "level": 3,
+      "difficulty": "Easy",
+      "minutes": 40,
+      "statement": "Design a parcel locker network: lockers with compartments of sizes, courier drop-off assigning a fitting compartment, OTP pickup by customer, expiry and return-to-sender, and returns drop-off.",
+      "fr": [
+        "Locker locations with compartments (S, M, L)",
+        "Assign smallest fitting free compartment",
+        "Generate OTP on drop; notify customer",
+        "Pickup with OTP",
+        "Expiry after 3 days → courier retrieval",
+        "Returns flow"
+      ],
+      "nfr": [
+        "No compartment double assignment",
+        "OTP secure and single use"
+      ],
+      "constraints": [
+        "1000 lockers"
+      ],
+      "edge": [
+        "No fitting compartment",
+        "Wrong OTP attempts",
+        "Compartment door fails"
+      ],
+      "behavior": [
+        "Allocation atomic"
+      ],
+      "concepts": [
+        "Allocation strategy",
+        "State per compartment"
+      ],
+      "patterns": [
+        "Strategy",
+        "State",
+        "Observer"
+      ],
+      "followups": [
+        "Reservation before shipping"
+      ],
+      "clar": [
+        [
+          "Sizes?",
+          "S, M, L."
+        ]
+      ],
+      "track": "extended",
+      "num": 56,
+      "path": "problems/L3-real-world-systems/56-parcel-locker"
+    },
+    {
+      "slug": "rate-limiter",
+      "title": "Rate Limiter Library",
+      "level": 4,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design a rate limiting library used by API servers to limit requests per client key. Support multiple algorithms (token bucket, leaky bucket, fixed window, sliding window log, sliding window counter), per-endpoint rules, and a storage backend that can be local memory or shared (Redis-like).",
+      "fr": [
+        "allow(key, rule) returns allowed/denied with retry-after",
+        "Algorithms: token bucket, fixed window, sliding log, sliding counter",
+        "Rules per client tier and endpoint, loaded from config",
+        "Pluggable storage: in-memory, distributed",
+        "Headers: limit, remaining, reset"
+      ],
+      "nfr": [
+        "Thread-safe and lock-light",
+        "O(1) per check for counter algorithms",
+        "Clock injectable for testing",
+        "Fail-open or fail-closed configurable when storage down"
+      ],
+      "constraints": [
+        "100k keys active",
+        "50k checks/sec per instance"
+      ],
+      "edge": [
+        "Burst at window boundary (fixed window flaw)",
+        "Clock skew between servers",
+        "Storage timeout",
+        "Key with no rule configured"
+      ],
+      "behavior": [
+        "Token bucket refills lazily based on elapsed time"
+      ],
+      "concepts": [
+        "Algorithm trade-offs",
+        "Atomic operations / CAS",
+        "Strategy",
+        "Dependency injection of clock and store"
+      ],
+      "patterns": [
+        "Strategy",
+        "Factory",
+        "Decorator",
+        "Repository"
+      ],
+      "followups": [
+        "Distributed with Lua scripts for atomicity",
+        "Adaptive limits based on server load"
+      ],
+      "clar": [
+        [
+          "Which algorithms?",
+          "At least token bucket and sliding window, pluggable."
+        ],
+        [
+          "Distributed?",
+          "Design storage interface; in-memory implementation is enough."
+        ]
+      ],
+      "track": "core",
+      "num": 57,
+      "path": "problems/L4-concurrency-infrastructure-components/57-rate-limiter"
+    },
+    {
+      "slug": "thread-pool-scheduler",
+      "title": "Thread Pool & Task Scheduler",
+      "level": 4,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design a thread pool executor and a scheduler on top of it. Tasks can be submitted for immediate execution, delayed execution or fixed-rate repetition, with priorities and futures for results. The pool must handle back-pressure, graceful shutdown and task failure.",
+      "fr": [
+        "submit(task) returns Future",
+        "Core and max pool size, keep-alive for idle threads",
+        "Bounded work queue with rejection policies (abort, caller-runs, discard-oldest)",
+        "schedule(task, delay), scheduleAtFixedRate, scheduleWithFixedDelay",
+        "Priorities",
+        "shutdown() and shutdownNow() semantics",
+        "Task cancellation"
+      ],
+      "nfr": [
+        "No lost tasks or deadlocks",
+        "Low lock contention",
+        "Metrics: active, queued, completed"
+      ],
+      "constraints": [
+        "Up to 10k scheduled tasks"
+      ],
+      "edge": [
+        "Task throws exception (worker must survive)",
+        "Fixed-rate task slower than its period",
+        "Submit after shutdown",
+        "Cancel a running task",
+        "Priority starvation"
+      ],
+      "behavior": [
+        "Future.get() blocks until complete, rethrows task exception"
+      ],
+      "concepts": [
+        "Producer-consumer",
+        "Blocking queues, condition variables",
+        "Delay queue / min-heap by time",
+        "Worker lifecycle"
+      ],
+      "patterns": [
+        "Command",
+        "Strategy (rejection)",
+        "Factory (thread factory)",
+        "Template method"
+      ],
+      "followups": [
+        "Work-stealing",
+        "Distributed scheduler with leader election"
+      ],
+      "clar": [
+        [
+          "Bounded queue?",
+          "Yes, rejection policy configurable."
+        ],
+        [
+          "Repeating tasks?",
+          "Yes, fixed rate and fixed delay."
+        ]
+      ],
+      "track": "core",
+      "num": 58,
+      "path": "problems/L4-concurrency-infrastructure-components/58-thread-pool-scheduler"
+    },
+    {
+      "slug": "pub-sub-broker",
+      "title": "In-Memory Pub/Sub Message Broker",
+      "level": 4,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design an in-memory message broker like a simplified Kafka: topics with partitions, producers, consumer groups with offsets, retention, and at-least-once delivery. Consumers in a group share partitions; each group sees every message.",
+      "fr": [
+        "Create topic with N partitions",
+        "Publish with optional key (key → partition by hash)",
+        "Consumer groups; partitions assigned across group members; rebalance on join/leave",
+        "Consumers poll and commit offsets",
+        "Retention by time or size",
+        "Dead-letter topic after max retries"
+      ],
+      "nfr": [
+        "Ordering per partition",
+        "Thread-safe for concurrent producers/consumers",
+        "Slow consumer does not block producers"
+      ],
+      "constraints": [
+        "Up to 100 topics, 32 partitions each"
+      ],
+      "edge": [
+        "Consumer crashes before commit (redelivery)",
+        "Rebalance during processing",
+        "Offset beyond retention",
+        "Poison message"
+      ],
+      "behavior": [
+        "poll() returns messages after last committed offset for assigned partitions"
+      ],
+      "concepts": [
+        "Append-only log",
+        "Offsets",
+        "Partition assignment strategy",
+        "At-least-once vs exactly-once"
+      ],
+      "patterns": [
+        "Observer",
+        "Strategy (partitioner, assignor)",
+        "Iterator"
+      ],
+      "followups": [
+        "Push-based delivery",
+        "Message filtering",
+        "Persistence to disk segments"
+      ],
+      "clar": [
+        [
+          "Delivery guarantee?",
+          "At-least-once."
+        ],
+        [
+          "Ordering?",
+          "Per partition only."
+        ]
+      ],
+      "track": "core",
+      "num": 59,
+      "path": "problems/L4-concurrency-infrastructure-components/59-pub-sub-broker"
+    },
+    {
+      "slug": "kv-store",
+      "title": "Key-Value Store with TTL & Transactions",
+      "level": 4,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design an in-memory key-value store (Redis-lite) supporting strings, TTL expiry, nested transactions (begin/commit/rollback), snapshots, and a write-ahead log for durability.",
+      "fr": [
+        "get/set/delete/exists, set with TTL",
+        "Lazy and active expiry",
+        "BEGIN / COMMIT / ROLLBACK with nesting",
+        "Snapshot and restore",
+        "Write-ahead log replay on startup",
+        "Pluggable eviction on memory limit"
+      ],
+      "nfr": [
+        "O(1) basic ops",
+        "Thread-safe",
+        "Crash-safe: committed writes survive restart"
+      ],
+      "constraints": [
+        "Up to 10M keys"
+      ],
+      "edge": [
+        "Rollback restoring a deleted key",
+        "Key expires inside a transaction",
+        "Crash mid WAL write",
+        "Commit with no transaction"
+      ],
+      "behavior": [
+        "Inner rollback does not affect outer transaction changes"
+      ],
+      "concepts": [
+        "Undo logs / layered maps",
+        "WAL",
+        "Expiry heaps",
+        "Command pattern"
+      ],
+      "patterns": [
+        "Command",
+        "Memento",
+        "Strategy",
+        "Decorator"
+      ],
+      "followups": [
+        "Replication to followers",
+        "Data types: lists, sorted sets"
+      ],
+      "clar": [
+        [
+          "Nested transactions?",
+          "Yes."
+        ],
+        [
+          "Durability needed?",
+          "Yes, WAL."
+        ]
+      ],
+      "track": "core",
+      "num": 60,
+      "path": "problems/L4-concurrency-infrastructure-components/60-kv-store"
+    },
+    {
+      "slug": "connection-pool",
+      "title": "Database Connection Pool",
+      "level": 4,
+      "difficulty": "Medium",
+      "minutes": 40,
+      "statement": "Design a generic resource pool (used for DB connections) with min/max size, borrow timeout, validation, idle eviction and leak detection.",
+      "fr": [
+        "borrow(timeout) and release(conn)",
+        "Min idle, max total",
+        "Validate on borrow/return",
+        "Evict idle connections after N minutes",
+        "Leak detection: warn if held > threshold",
+        "Metrics"
+      ],
+      "nfr": [
+        "Fair waiting (FIFO)",
+        "No connection handed to two borrowers",
+        "Pool works for any resource type (generic factory)"
+      ],
+      "constraints": [
+        "Up to 200 connections"
+      ],
+      "edge": [
+        "Release twice",
+        "Release a foreign connection",
+        "DB down when growing pool",
+        "Borrower thread interrupted"
+      ],
+      "behavior": [
+        "borrow throws PoolExhausted after timeout"
+      ],
+      "concepts": [
+        "Semaphores",
+        "Object pool",
+        "Proxy to intercept close()"
+      ],
+      "patterns": [
+        "Object Pool",
+        "Factory",
+        "Proxy"
+      ],
+      "followups": [
+        "Multiple pools with routing (read replicas)"
+      ],
+      "clar": [
+        [
+          "Generic or DB only?",
+          "Generic but demo with DB connections."
+        ]
+      ],
+      "track": "core",
+      "num": 61,
+      "path": "problems/L4-concurrency-infrastructure-components/61-connection-pool"
+    },
+    {
+      "slug": "circuit-breaker",
+      "title": "Circuit Breaker & Retry Library",
+      "level": 4,
+      "difficulty": "Medium",
+      "minutes": 40,
+      "statement": "Design a resilience library wrapping calls to remote services with circuit breaking, retries with backoff and jitter, timeouts, bulkheads and fallbacks, composable in any order.",
+      "fr": [
+        "Circuit states Closed, Open, HalfOpen with failure-rate threshold over a sliding window",
+        "Retry with exponential backoff and jitter, retry only on configured exceptions",
+        "Timeout per call",
+        "Bulkhead: max concurrent calls",
+        "Fallback function",
+        "Composition: retry(circuitBreaker(timeout(call)))"
+      ],
+      "nfr": [
+        "Thread-safe state transitions",
+        "Events for monitoring"
+      ],
+      "constraints": [
+        "Sliding window of last 100 calls or 60 s"
+      ],
+      "edge": [
+        "Many requests in HalfOpen",
+        "Retry storm amplifying outage",
+        "Non-idempotent call retried"
+      ],
+      "behavior": [
+        "Open state fails fast with CallNotPermitted"
+      ],
+      "concepts": [
+        "State",
+        "Decorator composition",
+        "Sliding windows"
+      ],
+      "patterns": [
+        "State",
+        "Decorator",
+        "Builder",
+        "Observer"
+      ],
+      "followups": [
+        "Adaptive concurrency limits"
+      ],
+      "clar": [
+        [
+          "Composable?",
+          "Yes, any order."
+        ]
+      ],
+      "track": "core",
+      "num": 62,
+      "path": "problems/L4-concurrency-infrastructure-components/62-circuit-breaker"
+    },
+    {
+      "slug": "cron-scheduler",
+      "title": "Distributed-Ready Job Scheduler (Cron)",
+      "level": 4,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design a job scheduler that runs jobs on cron expressions or one-off times, tracks runs, retries failures, prevents overlapping runs, and is designed so multiple scheduler instances could run without executing a job twice.",
+      "fr": [
+        "Register job with cron expression, payload, timeout, retry policy",
+        "Pause/resume/delete jobs",
+        "Run history and status",
+        "Concurrency policy: allow, skip, or replace overlapping runs",
+        "Missed-run policy after downtime",
+        "Lease-based claiming so one instance runs each due job"
+      ],
+      "nfr": [
+        "Accurate to the second",
+        "No duplicate execution across instances",
+        "Time-zone and DST correct"
+      ],
+      "constraints": [
+        "Up to 100k jobs"
+      ],
+      "edge": [
+        "DST gap/overlap",
+        "Instance dies holding a lease",
+        "Job longer than its interval",
+        "Invalid cron expression"
+      ],
+      "behavior": [
+        "nextFireTime computed from parsed cron"
+      ],
+      "concepts": [
+        "Cron parsing (Interpreter)",
+        "Min-heap of next runs",
+        "Leases",
+        "Idempotency"
+      ],
+      "patterns": [
+        "Interpreter",
+        "Strategy",
+        "Command",
+        "Observer"
+      ],
+      "followups": [
+        "Job dependencies (DAG)"
+      ],
+      "clar": [
+        [
+          "Multiple instances?",
+          "Design for it; one is fine to implement."
+        ]
+      ],
+      "track": "core",
+      "num": 63,
+      "path": "problems/L4-concurrency-infrastructure-components/63-cron-scheduler"
+    },
+    {
+      "slug": "load-balancer",
+      "title": "Load Balancer with Health Checks",
+      "level": 4,
+      "difficulty": "Medium",
+      "minutes": 40,
+      "statement": "Design an L7 load balancer component that routes requests to backend servers using pluggable algorithms (round robin, weighted, least connections, consistent hashing), tracks health, and supports draining.",
+      "fr": [
+        "Register/deregister backends with weights",
+        "Algorithms: RR, weighted RR, least connections, consistent hashing with virtual nodes",
+        "Active and passive health checks",
+        "Draining a server",
+        "Sticky sessions"
+      ],
+      "nfr": [
+        "Thread-safe selection",
+        "O(log n) consistent hashing lookup",
+        "Minimal key movement on server change"
+      ],
+      "constraints": [
+        "Up to 1000 backends"
+      ],
+      "edge": [
+        "All backends unhealthy",
+        "Flapping health",
+        "Weight 0"
+      ],
+      "behavior": [
+        "next(request) returns a healthy backend or NoBackendAvailable"
+      ],
+      "concepts": [
+        "Consistent hashing",
+        "Strategy",
+        "Observer"
+      ],
+      "patterns": [
+        "Strategy",
+        "Observer",
+        "Factory"
+      ],
+      "followups": [
+        "Zone-aware routing"
+      ],
+      "clar": [
+        [
+          "Algorithms?",
+          "Pluggable, at least RR and least-connections."
+        ]
+      ],
+      "track": "core",
+      "num": 64,
+      "path": "problems/L4-concurrency-infrastructure-components/64-load-balancer"
+    },
+    {
+      "slug": "blocking-queue",
+      "title": "Bounded Blocking Queue",
+      "level": 4,
+      "difficulty": "Medium",
+      "minutes": 35,
+      "statement": "Implement a generic thread-safe bounded blocking queue with put/take that block, offer/poll with timeouts, fairness option, and drain, then use it in a producer-consumer demo.",
+      "fr": [
+        "put blocks when full; take blocks when empty",
+        "offer/poll with timeout",
+        "Optional fairness (FIFO waiters)",
+        "drainTo(collection, max)",
+        "size and remainingCapacity"
+      ],
+      "nfr": [
+        "No lost wakeups or busy waiting",
+        "Correct under many producers and consumers"
+      ],
+      "constraints": [
+        "Capacity ≥ 1"
+      ],
+      "edge": [
+        "Interrupt while waiting",
+        "Spurious wakeups",
+        "Capacity 1"
+      ],
+      "behavior": [
+        "Linearizable put/take"
+      ],
+      "concepts": [
+        "Monitors, condition variables",
+        "Two-lock queue",
+        "Interruption"
+      ],
+      "patterns": [
+        "Producer-Consumer",
+        "Guarded Suspension"
+      ],
+      "followups": [
+        "Priority blocking queue",
+        "Lock-free variant"
+      ],
+      "clar": [
+        [
+          "Fairness required?",
+          "Optional flag."
+        ]
+      ],
+      "track": "extended",
+      "num": 65,
+      "path": "problems/L4-concurrency-infrastructure-components/65-blocking-queue"
+    },
+    {
+      "slug": "metrics-collector",
+      "title": "Metrics Collector (Counters, Histograms)",
+      "level": 4,
+      "difficulty": "Medium",
+      "minutes": 40,
+      "statement": "Design an in-process metrics library: counters, gauges, histograms with percentiles, tags, sliding time windows, and periodic export to backends.",
+      "fr": [
+        "Counter, Gauge, Timer, Histogram with tags",
+        "Percentiles (p50/p95/p99) via buckets or sketches",
+        "Sliding windows (last 1m/5m)",
+        "Registry with get-or-create",
+        "Exporters pluggable (Prometheus, StatsD)"
+      ],
+      "nfr": [
+        "Recording is lock-free/cheap",
+        "Bounded memory per metric",
+        "High-cardinality tag guard"
+      ],
+      "constraints": [
+        "1M records/sec"
+      ],
+      "edge": [
+        "Tag explosion",
+        "Exporter slow",
+        "Clock jump"
+      ],
+      "behavior": [
+        "record never blocks the caller"
+      ],
+      "concepts": [
+        "Atomic counters, striped adders",
+        "Ring buffers",
+        "Registry"
+      ],
+      "patterns": [
+        "Registry",
+        "Strategy",
+        "Observer"
+      ],
+      "followups": [
+        "Exemplars linked to traces"
+      ],
+      "clar": [
+        [
+          "Percentile accuracy?",
+          "Approximate is fine."
+        ]
+      ],
+      "track": "extended",
+      "num": 66,
+      "path": "problems/L4-concurrency-infrastructure-components/66-metrics-collector"
+    },
+    {
+      "slug": "id-generator",
+      "title": "Unique ID Generator (Snowflake)",
+      "level": 4,
+      "difficulty": "Medium",
+      "minutes": 35,
+      "statement": "Design a library producing unique, roughly time-ordered 64-bit IDs across many nodes without coordination per ID: timestamp, node id and sequence bits, with clock-skew handling.",
+      "fr": [
+        "64-bit layout: timestamp, datacenter, worker, sequence",
+        "Custom epoch",
+        "Sequence rollover within a millisecond waits",
+        "Node id assignment via config or lease",
+        "Decode id into parts"
+      ],
+      "nfr": [
+        "Millions of IDs/sec per node",
+        "Monotonic per node"
+      ],
+      "constraints": [
+        "1024 nodes"
+      ],
+      "edge": [
+        "Clock moves backwards",
+        "Sequence exhausted",
+        "Duplicate node id"
+      ],
+      "behavior": [
+        "nextId is thread-safe and unique"
+      ],
+      "concepts": [
+        "Bit packing",
+        "CAS",
+        "Clock abstraction"
+      ],
+      "patterns": [
+        "Singleton (per node)",
+        "Strategy (node id)"
+      ],
+      "followups": [
+        "UUIDv7 / ULID comparison"
+      ],
+      "clar": [
+        [
+          "Ordering?",
+          "Roughly time-ordered."
+        ]
+      ],
+      "track": "extended",
+      "num": 67,
+      "path": "problems/L4-concurrency-infrastructure-components/67-id-generator"
+    },
+    {
+      "slug": "web-crawler",
+      "title": "Multithreaded Web Crawler",
+      "level": 4,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design a crawler that starts from seed URLs, fetches pages concurrently with politeness limits per host, extracts links, deduplicates, respects robots.txt and depth limits, and hands content to processors.",
+      "fr": [
+        "Frontier with priorities",
+        "Per-host rate limiting and concurrency",
+        "robots.txt cache",
+        "URL normalisation and dedupe",
+        "Depth/domain limits",
+        "Pluggable content processors",
+        "Pause/resume"
+      ],
+      "nfr": [
+        "Bounded memory frontier",
+        "Graceful shutdown",
+        "Failure retries with backoff"
+      ],
+      "constraints": [
+        "10M URLs"
+      ],
+      "edge": [
+        "Redirect loops",
+        "Spider traps (infinite calendars)",
+        "Huge pages",
+        "Host timeouts"
+      ],
+      "behavior": [
+        "Each URL fetched at most once"
+      ],
+      "concepts": [
+        "Thread pools",
+        "Concurrent sets",
+        "Back-pressure"
+      ],
+      "patterns": [
+        "Producer-Consumer",
+        "Strategy",
+        "Chain of Responsibility (processors)"
+      ],
+      "followups": [
+        "Distributed crawl across machines"
+      ],
+      "clar": [
+        [
+          "Respect robots?",
+          "Yes."
+        ]
+      ],
+      "track": "extended",
+      "num": 68,
+      "path": "problems/L4-concurrency-infrastructure-components/68-web-crawler"
+    },
+    {
+      "slug": "event-bus",
+      "title": "In-Process Event Bus",
+      "level": 4,
+      "difficulty": "Medium",
+      "minutes": 40,
+      "statement": "Design a typed in-process event bus: publish/subscribe by event type, sync and async delivery, ordering guarantees, error isolation, dead events, and priorities.",
+      "fr": [
+        "subscribe(type, handler, options)",
+        "publish sync or async",
+        "Handler priority and ordering",
+        "Error isolation and retries",
+        "Unsubscribe",
+        "Wildcard/supertype subscriptions"
+      ],
+      "nfr": [
+        "Thread-safe subscription changes during publish",
+        "No memory leaks from subscribers"
+      ],
+      "constraints": [
+        "Thousands of handlers"
+      ],
+      "edge": [
+        "Handler publishes inside handler",
+        "Handler throws",
+        "Unsubscribe during dispatch"
+      ],
+      "behavior": [
+        "Failed handler does not stop others"
+      ],
+      "concepts": [
+        "Observer",
+        "Copy-on-write lists",
+        "Executor"
+      ],
+      "patterns": [
+        "Observer",
+        "Mediator",
+        "Strategy"
+      ],
+      "followups": [
+        "Transactional outbox integration"
+      ],
+      "clar": [
+        [
+          "Async?",
+          "Both modes."
+        ]
+      ],
+      "track": "extended",
+      "num": 69,
+      "path": "problems/L4-concurrency-infrastructure-components/69-event-bus"
+    },
+    {
+      "slug": "micro-batcher",
+      "title": "Micro-Batching Processor",
+      "level": 4,
+      "difficulty": "Medium",
+      "minutes": 40,
+      "statement": "Design a library that accepts individual jobs and processes them in batches by size or time (whichever first), returning per-job results via futures, with back-pressure and shutdown.",
+      "fr": [
+        "submit(job) → Future<Result>",
+        "Flush on batch size or max wait",
+        "Batch processor injected",
+        "Partial failure maps results to jobs",
+        "Graceful shutdown flushes"
+      ],
+      "nfr": [
+        "Bounded buffer",
+        "Low latency at low load"
+      ],
+      "constraints": [
+        "Batch size 1-1000"
+      ],
+      "edge": [
+        "Processor throws for whole batch",
+        "Submit after shutdown"
+      ],
+      "behavior": [
+        "Every submitted job completes or fails"
+      ],
+      "concepts": [
+        "Timers + queues",
+        "Futures"
+      ],
+      "patterns": [
+        "Command",
+        "Strategy"
+      ],
+      "followups": [
+        "Adaptive batch sizing"
+      ],
+      "clar": [
+        [
+          "Per-job results?",
+          "Yes."
+        ]
+      ],
+      "track": "extended",
+      "num": 70,
+      "path": "problems/L4-concurrency-infrastructure-components/70-micro-batcher"
+    },
+    {
+      "slug": "service-registry",
+      "title": "Service Registry & Discovery",
+      "level": 4,
+      "difficulty": "Hard",
+      "minutes": 45,
+      "statement": "Design a service registry where instances register with heartbeats, clients discover healthy instances with metadata filters and cache results, and watchers get change notifications.",
+      "fr": [
+        "Register/deregister with TTL heartbeats",
+        "Health status",
+        "Query by service, version, zone tags",
+        "Client-side cache with watch updates",
+        "Load-balancing hint to clients"
+      ],
+      "nfr": [
+        "Expire dead instances quickly",
+        "Clients survive registry outage with stale cache"
+      ],
+      "constraints": [
+        "10k instances"
+      ],
+      "edge": [
+        "Network partition",
+        "Flapping instance",
+        "Duplicate registration"
+      ],
+      "behavior": [
+        "Watchers receive ordered change events"
+      ],
+      "concepts": [
+        "Leases",
+        "Observer",
+        "Cache"
+      ],
+      "patterns": [
+        "Observer",
+        "Proxy",
+        "Strategy"
+      ],
+      "followups": [
+        "Multi-datacenter"
+      ],
+      "clar": [
+        [
+          "Push or pull?",
+          "Watch-based push with polling fallback."
+        ]
+      ],
+      "track": "extended",
+      "num": 71,
+      "path": "problems/L4-concurrency-infrastructure-components/71-service-registry"
+    },
+    {
+      "slug": "distributed-lock",
+      "title": "Lock Manager with Leases",
+      "level": 4,
+      "difficulty": "Hard",
+      "minutes": 45,
+      "statement": "Design a lock service and client library offering named locks with leases, renewal, fencing tokens, reentrancy and read/write modes, safe against client pauses.",
+      "fr": [
+        "acquire(name, ttl, wait)",
+        "renew and release",
+        "Fencing token increasing per grant",
+        "Read/write locks",
+        "Fair waiting"
+      ],
+      "nfr": [
+        "Safety: one writer at a time",
+        "Liveness via lease expiry"
+      ],
+      "constraints": [
+        "100k locks"
+      ],
+      "edge": [
+        "GC pause past lease",
+        "Release by non-owner",
+        "Holder crashes"
+      ],
+      "behavior": [
+        "Stale holders rejected via fencing token by resources"
+      ],
+      "concepts": [
+        "Leases",
+        "Fencing tokens",
+        "Reentrancy"
+      ],
+      "patterns": [
+        "Proxy",
+        "State"
+      ],
+      "followups": [
+        "Consensus-backed implementation"
+      ],
+      "clar": [
+        [
+          "Single server?",
+          "Design interface; one server fine."
+        ]
+      ],
+      "track": "extended",
+      "num": 72,
+      "path": "problems/L4-concurrency-infrastructure-components/72-distributed-lock"
+    },
+    {
+      "slug": "download-manager",
+      "title": "Resumable Download Manager",
+      "level": 4,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design a download manager that splits files into ranges downloaded in parallel, supports pause/resume across restarts, retries failed segments, verifies checksums, and limits total bandwidth.",
+      "fr": [
+        "Add download; parallel segments via range requests",
+        "Pause, resume, cancel",
+        "Persist progress",
+        "Retry segments with backoff",
+        "Checksum verification",
+        "Global bandwidth cap and max concurrent downloads"
+      ],
+      "nfr": [
+        "Crash-safe progress",
+        "Fair bandwidth across downloads"
+      ],
+      "constraints": [
+        "Files up to 50 GB"
+      ],
+      "edge": [
+        "Server ignores range requests",
+        "File changed on server (ETag)",
+        "Disk full"
+      ],
+      "behavior": [
+        "Resume continues from saved offsets"
+      ],
+      "concepts": [
+        "Thread pools",
+        "Token bucket",
+        "State"
+      ],
+      "patterns": [
+        "State",
+        "Strategy",
+        "Observer"
+      ],
+      "followups": [
+        "Torrent-like peers"
+      ],
+      "clar": [
+        [
+          "Resume after restart?",
+          "Yes."
+        ]
+      ],
+      "track": "extended",
+      "num": 73,
+      "path": "problems/L4-concurrency-infrastructure-components/73-download-manager"
+    },
+    {
+      "slug": "timing-wheel",
+      "title": "Timer Service (Hierarchical Timing Wheel)",
+      "level": 4,
+      "difficulty": "Hard",
+      "minutes": 45,
+      "statement": "Design a timer service handling millions of timeouts (request deadlines, session expiry) with O(1) schedule and cancel, using a hierarchical timing wheel, and compare with a heap-based delay queue.",
+      "fr": [
+        "schedule(task, delay) → handle",
+        "cancel(handle)",
+        "Hierarchical wheels for long delays",
+        "Tick-based advancement",
+        "Execute expired tasks on executor"
+      ],
+      "nfr": [
+        "O(1) schedule/cancel",
+        "Bounded drift"
+      ],
+      "constraints": [
+        "10M pending timers"
+      ],
+      "edge": [
+        "Delay longer than all wheels",
+        "Cancel after fire",
+        "Tick lag under load"
+      ],
+      "behavior": [
+        "Task fires no earlier than its delay"
+      ],
+      "concepts": [
+        "Timing wheels",
+        "Bucketing",
+        "Trade-off vs heap"
+      ],
+      "patterns": [
+        "Command",
+        "Strategy"
+      ],
+      "followups": [
+        "Persistence of timers"
+      ],
+      "clar": [
+        [
+          "Precision?",
+          "Tick of 10 ms is fine."
+        ]
+      ],
+      "track": "extended",
+      "num": 74,
+      "path": "problems/L4-concurrency-infrastructure-components/74-timing-wheel"
+    },
+    {
+      "slug": "digital-wallet",
+      "title": "Digital Wallet & Ledger",
+      "level": 5,
+      "difficulty": "Hard",
+      "minutes": 55,
+      "statement": "Design a digital wallet (Paytm-like or store credit) backed by a double-entry ledger. Users top up, pay merchants, transfer peer-to-peer, receive refunds and cashback with expiry. Every rupee must be traceable, balances can never go negative, and retried requests must never double-charge.",
+      "fr": [
+        "Accounts: user wallet, merchant, platform, bank-clearing",
+        "Operations: top-up, pay, transfer, refund, cashback (with expiry), withdraw",
+        "Double-entry: each transaction posts balanced debit/credit entries",
+        "Idempotency key on every write API",
+        "Balance and statement per account",
+        "Hold/capture/release for pending payments",
+        "Promotional credit consumed before cash credit with separate buckets"
+      ],
+      "nfr": [
+        "Strong consistency, no negative balances",
+        "Immutable ledger; corrections via reversal entries",
+        "Auditability",
+        "Concurrent transfers deadlock-free"
+      ],
+      "constraints": [
+        "Amounts in paise (integer)",
+        "KYC-based limits per user"
+      ],
+      "edge": [
+        "Same idempotency key with different payload",
+        "Concurrent debits exceeding balance",
+        "Refund on partially expired cashback",
+        "Bank top-up callback arrives twice"
+      ],
+      "behavior": [
+        "transfer(from, to, amount, key) returns the same result on retry",
+        "Sum of all entries is always zero"
+      ],
+      "concepts": [
+        "Double-entry bookkeeping",
+        "Idempotency store",
+        "Lock ordering",
+        "Bucketed balances",
+        "Reversal over mutation"
+      ],
+      "patterns": [
+        "Command",
+        "Strategy (consumption order)",
+        "Template method",
+        "Repository"
+      ],
+      "followups": [
+        "Multi-currency",
+        "Daily reconciliation with bank"
+      ],
+      "clar": [
+        [
+          "Promotional vs cash credit?",
+          "Separate; promo used first and can expire."
+        ],
+        [
+          "Can balance be negative?",
+          "Never."
+        ],
+        [
+          "Retries?",
+          "Clients retry aggressively."
+        ]
+      ],
+      "track": "core",
+      "num": 75,
+      "path": "problems/L5-staff-level-domains/75-digital-wallet"
+    },
+    {
+      "slug": "order-matching-engine",
+      "title": "Stock Exchange Order Matching Engine",
+      "level": 5,
+      "difficulty": "Hard",
+      "minutes": 55,
+      "statement": "Design the matching engine of a stock exchange for a set of instruments. It accepts limit, market and stop orders, maintains an order book per instrument with price-time priority, matches incoming orders, emits trades, and supports cancel/modify.",
+      "fr": [
+        "Order types: limit, market, stop-loss; time-in-force: DAY, IOC, FOK",
+        "Order book with bids/asks, price-time priority",
+        "Partial fills",
+        "Cancel and modify (modify loses priority if price/qty up)",
+        "Emit trade and order-update events",
+        "Market data: top of book, depth"
+      ],
+      "nfr": [
+        "Microsecond-level matching per instrument (single-threaded per book)",
+        "Deterministic replay from input log",
+        "No float prices (ticks)"
+      ],
+      "constraints": [
+        "5000 instruments",
+        "Tick size 0.05",
+        "Circuit limits ±10%"
+      ],
+      "edge": [
+        "Market order with empty book",
+        "FOK not fully fillable",
+        "Self-trade prevention",
+        "Price outside circuit band",
+        "Stop trigger cascade"
+      ],
+      "behavior": [
+        "submit(order) returns list of trades and resulting order state"
+      ],
+      "concepts": [
+        "Sorted maps / heaps of FIFO queues",
+        "Event sourcing",
+        "Single writer principle",
+        "Strategy per order type"
+      ],
+      "patterns": [
+        "Strategy",
+        "Observer",
+        "Command",
+        "Factory"
+      ],
+      "followups": [
+        "Auction for open/close",
+        "Iceberg orders"
+      ],
+      "clar": [
+        [
+          "Order types?",
+          "Limit and market required; stop and IOC/FOK nice."
+        ],
+        [
+          "Threading?",
+          "Your call; justify."
+        ]
+      ],
+      "track": "core",
+      "num": 76,
+      "path": "problems/L5-staff-level-domains/76-order-matching-engine"
+    },
+    {
+      "slug": "pricing-rule-engine",
+      "title": "Promotion & Pricing Rule Engine",
+      "level": 5,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design a rule engine that the marketing team configures (without deploys) to define promotions: conditions on cart, customer and time; actions like percentage off, free item, tiered pricing; priorities, exclusivity and stacking; budget caps.",
+      "fr": [
+        "Rules = conditions (AND/OR tree) + actions",
+        "Conditions: cart total, SKU/category, customer segment, date/time, first order",
+        "Actions: % off, flat off, free item, tiered price, shipping discount",
+        "Priority, exclusivity groups, stacking limits",
+        "Budget/usage caps per rule and per customer",
+        "Explain which rules applied and why others didn't",
+        "Versioned rules with scheduled activation"
+      ],
+      "nfr": [
+        "Evaluation under 20 ms for 1000 active rules",
+        "Rules serialisable (JSON) and validated",
+        "Deterministic"
+      ],
+      "constraints": [
+        "Up to 1000 active rules"
+      ],
+      "edge": [
+        "Two exclusive rules equally good",
+        "Budget exhausted concurrently",
+        "Rule edited while carts are evaluating"
+      ],
+      "behavior": [
+        "evaluate(context) returns adjustments with rule ids and explanation"
+      ],
+      "concepts": [
+        "Interpreter / Specification",
+        "Composite conditions",
+        "Versioning",
+        "Atomic budget counters"
+      ],
+      "patterns": [
+        "Interpreter",
+        "Composite",
+        "Specification",
+        "Strategy",
+        "Chain of Responsibility"
+      ],
+      "followups": [
+        "Best combination optimisation",
+        "A/B experiments on rules"
+      ],
+      "clar": [
+        [
+          "Who writes rules?",
+          "Non-engineers via a UI producing JSON."
+        ],
+        [
+          "Explainability?",
+          "Yes, required."
+        ]
+      ],
+      "track": "core",
+      "num": 77,
+      "path": "problems/L5-staff-level-domains/77-pricing-rule-engine"
+    },
+    {
+      "slug": "workflow-engine",
+      "title": "Configurable Workflow / State Machine Engine",
+      "level": 5,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design a library that lets teams define state machines (e.g. order lifecycle, KYC approval) as configuration: states, transitions, guards, actions, timeouts and side-effect hooks. Instances persist and can resume after restart. Definitions are versioned.",
+      "fr": [
+        "Define workflow: states, events, transitions, guards, entry/exit actions",
+        "Create instance; fire event; query state and history",
+        "Timers: auto-transition after timeout",
+        "Versioned definitions; running instances stay on their version",
+        "Hooks for side effects with retry",
+        "Validation: unreachable states, dead ends"
+      ],
+      "nfr": [
+        "Concurrent events on same instance serialised",
+        "Persistence pluggable",
+        "Side effects at-least-once with idempotency"
+      ],
+      "constraints": [
+        "1M instances"
+      ],
+      "edge": [
+        "Event not valid in current state",
+        "Guard throws",
+        "Migration of instances to new version",
+        "Timer fires after manual transition"
+      ],
+      "behavior": [
+        "fire(instanceId, event, ctx) is atomic: state + history + outbox"
+      ],
+      "concepts": [
+        "State pattern vs table-driven FSM",
+        "Optimistic locking",
+        "Outbox",
+        "Versioning"
+      ],
+      "patterns": [
+        "State",
+        "Builder (DSL)",
+        "Observer",
+        "Command"
+      ],
+      "followups": [
+        "Parallel states / sub-workflows",
+        "Visual designer"
+      ],
+      "clar": [
+        [
+          "Code or config?",
+          "Config (JSON/YAML) with code hooks."
+        ]
+      ],
+      "track": "core",
+      "num": 78,
+      "path": "problems/L5-staff-level-domains/78-workflow-engine"
+    },
+    {
+      "slug": "feature-flags",
+      "title": "Feature Flag & Experimentation Service",
+      "level": 5,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design a feature flag SDK and service: flags with targeting rules, percentage rollouts with consistent bucketing, kill switches, A/B variants, and local evaluation in SDKs with streaming updates.",
+      "fr": [
+        "Boolean and multivariate flags",
+        "Targeting rules on user attributes",
+        "Percentage rollout with stable hashing",
+        "Environments",
+        "SDK evaluates locally from cached config; receives updates",
+        "Exposure events for analytics",
+        "Audit trail"
+      ],
+      "nfr": [
+        "Evaluation sub-millisecond, no network on hot path",
+        "Safe default when config unavailable",
+        "Same user always gets same variant"
+      ],
+      "constraints": [
+        "10k flags"
+      ],
+      "edge": [
+        "Flag deleted while referenced",
+        "Rollout percent decreased",
+        "Prerequisite flag cycles"
+      ],
+      "behavior": [
+        "evaluate(flagKey, user, default) never throws"
+      ],
+      "concepts": [
+        "Consistent hashing for bucketing",
+        "Specification",
+        "Observer",
+        "Cache invalidation"
+      ],
+      "patterns": [
+        "Strategy",
+        "Specification",
+        "Observer",
+        "Proxy"
+      ],
+      "followups": [
+        "Mutual exclusion between experiments"
+      ],
+      "clar": [
+        [
+          "Local evaluation?",
+          "Yes, SDK side."
+        ]
+      ],
+      "track": "core",
+      "num": 79,
+      "path": "problems/L5-staff-level-domains/79-feature-flags"
+    },
+    {
+      "slug": "search-autocomplete",
+      "title": "Search Autocomplete Engine",
+      "level": 5,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design an autocomplete component that returns top-K suggestions for a prefix, ranked by popularity and recency, supports typo tolerance, personalisation hooks and live updates of popularity.",
+      "fr": [
+        "Insert/update terms with weights",
+        "topK(prefix, k)",
+        "Ranking strategy pluggable (frequency, recency decay, personalised)",
+        "Typo tolerance (edit distance 1)",
+        "Blocklist filtering",
+        "Periodic rebuild vs incremental updates"
+      ],
+      "nfr": [
+        "p99 < 10 ms",
+        "Memory-efficient",
+        "Reads lock-free during rebuild (copy-on-write)"
+      ],
+      "constraints": [
+        "5M terms"
+      ],
+      "edge": [
+        "Empty prefix",
+        "Unicode/case normalisation",
+        "Ties in score"
+      ],
+      "behavior": [
+        "Returns deterministic ordering"
+      ],
+      "concepts": [
+        "Trie with cached top-K",
+        "Copy-on-write swap",
+        "Strategy for ranking"
+      ],
+      "patterns": [
+        "Strategy",
+        "Decorator (filters)",
+        "Builder"
+      ],
+      "followups": [
+        "Multi-language",
+        "Sharding by prefix"
+      ],
+      "clar": [
+        [
+          "Typo tolerance?",
+          "Edit distance 1 nice-to-have."
+        ]
+      ],
+      "track": "core",
+      "num": 80,
+      "path": "problems/L5-staff-level-domains/80-search-autocomplete"
+    },
+    {
+      "slug": "payment-gateway",
+      "title": "Payment Gateway (Merchant Side)",
+      "level": 5,
+      "difficulty": "Hard",
+      "minutes": 55,
+      "statement": "Design a payment gateway serving merchants: payment intents, authorisation, capture, refunds, multiple payment methods, webhooks to merchants with retries, idempotency and reconciliation with acquirers.",
+      "fr": [
+        "Payment intent lifecycle: created → requires_action → authorised → captured / failed / cancelled",
+        "Methods: card, UPI, netbanking, wallet",
+        "Partial capture and multiple refunds",
+        "Merchant webhooks with signing and retries",
+        "Idempotency keys",
+        "Settlement and reconciliation reports"
+      ],
+      "nfr": [
+        "No double charges",
+        "Every state change auditable",
+        "PCI scope minimised (tokenisation)"
+      ],
+      "constraints": [
+        "10k TPS peak"
+      ],
+      "edge": [
+        "Acquirer timeout with unknown status",
+        "Refund exceeding captured",
+        "Webhook endpoint down for days",
+        "3DS abandoned"
+      ],
+      "behavior": [
+        "Status queries trigger acquirer inquiry for unknown outcomes"
+      ],
+      "concepts": [
+        "State machine",
+        "Idempotency",
+        "Outbox for webhooks",
+        "Reconciliation"
+      ],
+      "patterns": [
+        "State",
+        "Adapter",
+        "Strategy",
+        "Observer"
+      ],
+      "followups": [
+        "Recurring mandates",
+        "Smart retries"
+      ],
+      "clar": [
+        [
+          "Who are users?",
+          "Merchants integrating via API."
+        ]
+      ],
+      "track": "extended",
+      "num": 81,
+      "path": "problems/L5-staff-level-domains/81-payment-gateway"
+    },
+    {
+      "slug": "subscription-billing",
+      "title": "Subscription Billing Engine",
+      "level": 5,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design a billing engine for SaaS subscriptions: plans and add-ons, billing cycles, trials, upgrades/downgrades with proration, usage-based charges, invoices, taxes, dunning on failed payments, and credits.",
+      "fr": [
+        "Plans with price tiers, intervals, trials",
+        "Subscribe, change plan, cancel at period end or immediately",
+        "Proration on mid-cycle changes",
+        "Metered usage aggregation",
+        "Invoice generation with taxes and credits",
+        "Dunning: retry schedule, grace, suspension"
+      ],
+      "nfr": [
+        "Invoices immutable once finalised",
+        "Deterministic money math",
+        "Pricing models extensible"
+      ],
+      "constraints": [
+        "1M subscriptions"
+      ],
+      "edge": [
+        "Upgrade then downgrade same day",
+        "Usage reported late",
+        "Leap years and month-end anchors",
+        "Currency rounding"
+      ],
+      "behavior": [
+        "Same inputs always produce same invoice"
+      ],
+      "concepts": [
+        "Proration math",
+        "Strategy pricing",
+        "Scheduled jobs",
+        "State"
+      ],
+      "patterns": [
+        "Strategy",
+        "State",
+        "Builder",
+        "Observer"
+      ],
+      "followups": [
+        "Multi-currency",
+        "Revenue recognition"
+      ],
+      "clar": [
+        [
+          "Proration?",
+          "Yes, daily granularity."
+        ]
+      ],
+      "track": "extended",
+      "num": 82,
+      "path": "problems/L5-staff-level-domains/82-subscription-billing"
+    },
+    {
+      "slug": "loyalty-points",
+      "title": "Loyalty & Rewards Points Engine",
+      "level": 5,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design a loyalty program: earning rules per event, tiers with benefits, point expiry (FIFO), redemption for rewards, reversal on refunds, and fraud limits.",
+      "fr": [
+        "Earn rules: per spend, category multipliers, campaigns",
+        "Tiers by rolling 12-month spend",
+        "Points in lots with expiry; burn oldest first",
+        "Redeem with partial points + cash",
+        "Reverse on refund",
+        "Statement"
+      ],
+      "nfr": [
+        "Ledger-based, auditable",
+        "Rules configurable"
+      ],
+      "constraints": [
+        "10M members"
+      ],
+      "edge": [
+        "Refund after points redeemed",
+        "Tier downgrade timing",
+        "Expiry during redemption"
+      ],
+      "behavior": [
+        "Balance = sum of lots"
+      ],
+      "concepts": [
+        "Lot-based ledger",
+        "Rule engine",
+        "Idempotency"
+      ],
+      "patterns": [
+        "Strategy",
+        "Observer",
+        "Specification"
+      ],
+      "followups": [
+        "Partner points exchange"
+      ],
+      "clar": [
+        [
+          "Expiry?",
+          "12 months per lot."
+        ]
+      ],
+      "track": "extended",
+      "num": 83,
+      "path": "problems/L5-staff-level-domains/83-loyalty-points"
+    },
+    {
+      "slug": "flash-sale-inventory",
+      "title": "Flash Sale Inventory Reservation",
+      "level": 5,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design inventory reservation for a flash sale where 1M users compete for 10k units: fair queueing, per-user limits, short reservation holds during payment, release on timeout, and no overselling.",
+      "fr": [
+        "Sale with start time, stock, per-user limit",
+        "Virtual waiting queue with tokens",
+        "Reserve unit with TTL",
+        "Confirm on payment; release on fail/timeout",
+        "Sold-out signalling"
+      ],
+      "nfr": [
+        "Zero oversell",
+        "Hot-key contention handled (sharded counters)",
+        "Fairness"
+      ],
+      "constraints": [
+        "100k requests/sec at start"
+      ],
+      "edge": [
+        "Payment after hold expiry",
+        "Bots",
+        "Counter shard imbalance"
+      ],
+      "behavior": [
+        "reserved + sold ≤ stock always"
+      ],
+      "concepts": [
+        "Sharded counters",
+        "Leases",
+        "Queueing"
+      ],
+      "patterns": [
+        "Strategy",
+        "Proxy",
+        "State"
+      ],
+      "followups": [
+        "Lottery instead of FCFS"
+      ],
+      "clar": [
+        [
+          "Per-user limit?",
+          "1 unit."
+        ]
+      ],
+      "track": "extended",
+      "num": 84,
+      "path": "problems/L5-staff-level-domains/84-flash-sale-inventory"
+    },
+    {
+      "slug": "pretrade-risk",
+      "title": "Pre-Trade Risk Management System",
+      "level": 5,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design the risk layer a broker runs before sending orders to the exchange: margin checks, position and exposure limits, price bands, order rate limits and kill switches, configurable per client and segment.",
+      "fr": [
+        "Checks: available margin, max order value, max quantity, price band, open-position limits, MTM loss limit",
+        "Per-client and per-segment rule sets",
+        "Order rate throttling",
+        "Kill switch per client/global",
+        "Block/hold margin on order, release on cancel/reject",
+        "Explain rejection reason"
+      ],
+      "nfr": [
+        "< 1 ms per order",
+        "Rules hot-reloadable",
+        "Consistent margin under concurrent orders"
+      ],
+      "constraints": [
+        "1M orders/day"
+      ],
+      "edge": [
+        "Simultaneous orders exceeding margin",
+        "Partial fill margin release",
+        "Market-wide circuit breaker"
+      ],
+      "behavior": [
+        "Checks run as an ordered chain; first failure rejects"
+      ],
+      "concepts": [
+        "Chain of Responsibility",
+        "Atomic margin accounting",
+        "Config versioning"
+      ],
+      "patterns": [
+        "Chain of Responsibility",
+        "Strategy",
+        "Observer"
+      ],
+      "followups": [
+        "Portfolio margin (SPAN-like)"
+      ],
+      "clar": [
+        [
+          "Segments?",
+          "Equity cash and F&O."
+        ]
+      ],
+      "track": "extended",
+      "num": 85,
+      "path": "problems/L5-staff-level-domains/85-pretrade-risk"
+    },
+    {
+      "slug": "marketplace-settlement",
+      "title": "Marketplace Settlement & Payouts",
+      "level": 5,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design settlement for a multi-seller marketplace: split each customer payment between sellers, platform commission, taxes (GST/TCS) and fees; hold funds until delivery or return window; pay out on schedule; handle refunds and chargebacks after payout.",
+      "fr": [
+        "Split payments per order line to sellers",
+        "Commission and fee rules per category/seller",
+        "Tax withholding",
+        "Hold period, release events",
+        "Payout batches with bank transfer",
+        "Negative balance recovery after refunds"
+      ],
+      "nfr": [
+        "Ledger-based with reconciliation",
+        "Rules versioned"
+      ],
+      "constraints": [
+        "100k sellers"
+      ],
+      "edge": [
+        "Refund after payout",
+        "Chargeback",
+        "Seller bank details invalid"
+      ],
+      "behavior": [
+        "All splits sum to payment amount"
+      ],
+      "concepts": [
+        "Double-entry",
+        "Escrow",
+        "Rule versioning"
+      ],
+      "patterns": [
+        "Strategy",
+        "Command",
+        "Observer"
+      ],
+      "followups": [
+        "Instant payouts for a fee"
+      ],
+      "clar": [
+        [
+          "Hold until?",
+          "Return window closes."
+        ]
+      ],
+      "track": "extended",
+      "num": 86,
+      "path": "problems/L5-staff-level-domains/86-marketplace-settlement"
+    },
+    {
+      "slug": "collaborative-editor",
+      "title": "Collaborative Document Editor",
+      "level": 5,
+      "difficulty": "Hard",
+      "minutes": 55,
+      "statement": "Design the core of a collaborative editor (Google Docs): concurrent edits from many users converge via OT or CRDT, presence cursors, comments anchored to text, version history and offline edits.",
+      "fr": [
+        "Document model (rich text blocks)",
+        "Operations: insert, delete, format",
+        "Convergence via OT or CRDT (justify)",
+        "Presence and cursors",
+        "Comments anchored to ranges",
+        "Version snapshots and restore",
+        "Offline queue and rebase"
+      ],
+      "nfr": [
+        "Convergence guaranteed",
+        "Low latency local echo"
+      ],
+      "constraints": [
+        "50 concurrent editors"
+      ],
+      "edge": [
+        "Concurrent delete of same range",
+        "Comment anchor deleted",
+        "Long offline divergence"
+      ],
+      "behavior": [
+        "All replicas converge to same state"
+      ],
+      "concepts": [
+        "OT vs CRDT",
+        "Command",
+        "Memento"
+      ],
+      "patterns": [
+        "Command",
+        "Observer",
+        "Memento",
+        "Mediator"
+      ],
+      "followups": [
+        "Suggesting mode"
+      ],
+      "clar": [
+        [
+          "OT or CRDT?",
+          "Your choice with justification."
+        ]
+      ],
+      "track": "extended",
+      "num": 87,
+      "path": "problems/L5-staff-level-domains/87-collaborative-editor"
+    },
+    {
+      "slug": "catalog-search",
+      "title": "Product Catalogue Search & Facets",
+      "level": 5,
+      "difficulty": "Medium",
+      "minutes": 45,
+      "statement": "Design an in-process search component for a product catalogue: inverted index, tokenisation, filters and facets with counts, sorting, synonyms, relevance scoring with boosts, and incremental index updates.",
+      "fr": [
+        "Index products with text and attributes",
+        "Query with text + filters (AND/OR, ranges)",
+        "Facet counts per attribute",
+        "Sort by relevance, price, rating",
+        "Synonyms and stemming",
+        "Incremental updates and deletes"
+      ],
+      "nfr": [
+        "p95 < 50 ms for 1M products",
+        "Analyzers pluggable"
+      ],
+      "constraints": [
+        "1M products"
+      ],
+      "edge": [
+        "Facet counts with active filters",
+        "Out-of-stock boosting",
+        "Misspellings"
+      ],
+      "behavior": [
+        "Results deterministic for ties"
+      ],
+      "concepts": [
+        "Inverted index",
+        "Bitsets",
+        "TF-IDF/BM25",
+        "Specification"
+      ],
+      "patterns": [
+        "Strategy",
+        "Specification",
+        "Builder",
+        "Chain (analyzers)"
+      ],
+      "followups": [
+        "Personalised ranking"
+      ],
+      "clar": [
+        [
+          "Typo tolerance?",
+          "Nice-to-have."
+        ]
+      ],
+      "track": "extended",
+      "num": 88,
+      "path": "problems/L5-staff-level-domains/88-catalog-search"
+    },
+    {
+      "slug": "di-container",
+      "title": "Dependency Injection Container",
+      "level": 6,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design a DI container (like NestJS's or Spring's core) that other teams use to wire applications: register providers, resolve dependency graphs, manage lifetimes, support modules with imports/exports, and fail early with clear errors.",
+      "fr": [
+        "Register providers: class, factory, value, alias",
+        "Lifetimes: singleton, scoped (per request), transient",
+        "Constructor injection via tokens",
+        "Modules with imports/exports and visibility rules",
+        "Detect circular dependencies with a readable path",
+        "Lifecycle hooks: onInit, onDestroy in dependency order",
+        "Optional and multi-providers (plugins)"
+      ],
+      "nfr": [
+        "Resolution fast after first build (precompiled graph)",
+        "Errors point to the exact missing token and module",
+        "Thread/async safe singleton creation",
+        "Public API stable across versions"
+      ],
+      "constraints": [
+        "Thousands of providers"
+      ],
+      "edge": [
+        "Scoped injected into singleton (captive dependency)",
+        "Async factory failure",
+        "Same token in two modules",
+        "Destroy order with cycles of hooks"
+      ],
+      "behavior": [
+        "container.compile() validates the whole graph before any instance is created"
+      ],
+      "concepts": [
+        "Inversion of Control",
+        "Graph algorithms (topological sort, cycle detection)",
+        "API design for frameworks",
+        "Scope management"
+      ],
+      "patterns": [
+        "Factory",
+        "Registry",
+        "Proxy",
+        "Composite (modules)"
+      ],
+      "followups": [
+        "Lazy providers",
+        "Hot module replacement",
+        "Testing utilities to override providers"
+      ],
+      "clar": [
+        [
+          "Which lifetimes?",
+          "Singleton, scoped, transient."
+        ],
+        [
+          "Modules?",
+          "Yes, with explicit exports."
+        ]
+      ],
+      "track": "core",
+      "num": 89,
+      "path": "problems/L6-principal-level-frameworks/89-di-container"
+    },
+    {
+      "slug": "saga-orchestrator",
+      "title": "Saga Orchestrator for Distributed Transactions",
+      "level": 6,
+      "difficulty": "Hard",
+      "minutes": 55,
+      "statement": "Design a framework that coordinates a business transaction spanning multiple services (reserve inventory, charge payment, create shipment) as a saga: ordered steps with compensations, retries, timeouts, persistence, and observability. Teams define sagas in code; the framework guarantees progress or compensation.",
+      "fr": [
+        "Define saga: steps with action, compensation, retry policy, timeout",
+        "Persist saga state after every step",
+        "Resume after crash",
+        "Compensate completed steps in reverse on failure",
+        "Parallel step groups",
+        "Manual intervention state when compensation fails",
+        "Query and replay sagas"
+      ],
+      "nfr": [
+        "Exactly-once effects via idempotent steps + dedupe",
+        "Horizontal scaling (claiming with leases)",
+        "Full trace per saga"
+      ],
+      "constraints": [
+        "10k concurrent sagas"
+      ],
+      "edge": [
+        "Compensation fails",
+        "Step times out but actually succeeded",
+        "Saga definition changes while instances run",
+        "Duplicate start request"
+      ],
+      "behavior": [
+        "Saga reaches COMPLETED, COMPENSATED or NEEDS_ATTENTION; never stuck silently"
+      ],
+      "concepts": [
+        "Orchestration vs choreography",
+        "Outbox/inbox",
+        "Idempotency",
+        "Versioned definitions",
+        "Failure semantics"
+      ],
+      "patterns": [
+        "Command",
+        "State",
+        "Builder (DSL)",
+        "Template method",
+        "Observer"
+      ],
+      "followups": [
+        "Choreography mode via events",
+        "Visual timeline UI"
+      ],
+      "clar": [
+        [
+          "Orchestration or choreography?",
+          "Orchestration."
+        ],
+        [
+          "Parallel steps?",
+          "Nice-to-have."
+        ]
+      ],
+      "track": "core",
+      "num": 90,
+      "path": "problems/L6-principal-level-frameworks/90-saga-orchestrator"
+    },
+    {
+      "slug": "policy-engine",
+      "title": "Authorization Policy Engine (RBAC + ABAC)",
+      "level": 6,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design a multi-tenant authorization engine that answers can(subject, action, resource, context) using roles, hierarchies, resource ownership and attribute conditions, with explainable decisions, policy versioning and very low latency.",
+      "fr": [
+        "Tenants, users, groups, roles with inheritance",
+        "Permissions on resource types and instances",
+        "ABAC conditions (resource.ownerId == subject.id, time, IP)",
+        "Deny overrides allow",
+        "Explain decision",
+        "Bulk check / list accessible resources",
+        "Policy changes audited and versioned"
+      ],
+      "nfr": [
+        "p99 < 5 ms",
+        "Tenant isolation",
+        "Cache with correct invalidation",
+        "Policies testable as code"
+      ],
+      "constraints": [
+        "10k tenants, 1M users"
+      ],
+      "edge": [
+        "Role cycle",
+        "Conflicting allow/deny",
+        "Removed role still cached",
+        "Missing attribute in condition"
+      ],
+      "behavior": [
+        "Decision includes matched policies"
+      ],
+      "concepts": [
+        "Interpreter for conditions",
+        "Graph traversal for roles",
+        "Caching and invalidation",
+        "Multi-tenancy"
+      ],
+      "patterns": [
+        "Interpreter",
+        "Composite",
+        "Chain of Responsibility",
+        "Proxy (cache)",
+        "Strategy"
+      ],
+      "followups": [
+        "Relationship-based (Zanzibar-style)",
+        "Delegated admin"
+      ],
+      "clar": [
+        [
+          "Multi-tenant?",
+          "Yes."
+        ],
+        [
+          "Explainability?",
+          "Required for audits."
+        ]
+      ],
+      "track": "core",
+      "num": 91,
+      "path": "problems/L6-principal-level-frameworks/91-policy-engine"
+    },
+    {
+      "slug": "event-sourced-ledger",
+      "title": "Event Sourcing & CQRS Framework",
+      "level": 6,
+      "difficulty": "Hard",
+      "minutes": 55,
+      "statement": "Design a framework for building event-sourced aggregates: commands validated against aggregate state, events appended to a stream with optimistic concurrency, projections build read models, snapshots speed up loading, and event schemas evolve over time.",
+      "fr": [
+        "Aggregate base with apply(event) and handle(command)",
+        "Event store: append with expected version, read stream",
+        "Snapshots every N events",
+        "Projections with checkpoints, rebuildable",
+        "Upcasting for event schema versions",
+        "Subscription for other services",
+        "Idempotent command handling"
+      ],
+      "nfr": [
+        "No lost updates (optimistic concurrency)",
+        "Projection lag observable",
+        "Storage pluggable"
+      ],
+      "constraints": [
+        "Streams up to 100k events"
+      ],
+      "edge": [
+        "Concurrent commands on same aggregate",
+        "Projection bug requiring replay",
+        "Old event version with removed field",
+        "Deleting personal data (GDPR) in immutable log"
+      ],
+      "behavior": [
+        "append fails with ConcurrencyConflict if version mismatched"
+      ],
+      "concepts": [
+        "Event sourcing",
+        "CQRS",
+        "Schema evolution",
+        "Crypto-shredding"
+      ],
+      "patterns": [
+        "Repository",
+        "Observer",
+        "Memento (snapshots)",
+        "Adapter (upcasters)"
+      ],
+      "followups": [
+        "Temporal queries (state as of date)"
+      ],
+      "clar": [
+        [
+          "Snapshots?",
+          "Yes."
+        ],
+        [
+          "Schema evolution?",
+          "Must handle."
+        ]
+      ],
+      "track": "core",
+      "num": 92,
+      "path": "problems/L6-principal-level-frameworks/92-event-sourced-ledger"
+    },
+    {
+      "slug": "middleware-pipeline",
+      "title": "API Gateway Middleware Pipeline",
+      "level": 6,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design the request-processing core of an API gateway: an ordered, configurable pipeline of middleware (auth, rate limit, transform, cache, routing, logging) per route, extensible via third-party plugins, with per-tenant configuration and hot reload.",
+      "fr": [
+        "Route matching (path params, methods, host)",
+        "Middleware chain per route with pre/post phases",
+        "Built-ins: auth, rate limit, CORS, cache, request/response transform, retries",
+        "Plugin API for third parties with config schema",
+        "Per-tenant overrides",
+        "Hot reload config atomically",
+        "Short-circuit responses"
+      ],
+      "nfr": [
+        "Overhead < 1 ms",
+        "A faulty plugin cannot crash the gateway",
+        "Plugin API versioned"
+      ],
+      "constraints": [
+        "5k routes"
+      ],
+      "edge": [
+        "Plugin throws",
+        "Config reload mid-request",
+        "Order dependencies between plugins"
+      ],
+      "behavior": [
+        "Each request uses one consistent config snapshot"
+      ],
+      "concepts": [
+        "Chain of Responsibility",
+        "Plugin architectures",
+        "Immutable config snapshots",
+        "Error isolation"
+      ],
+      "patterns": [
+        "Chain of Responsibility",
+        "Decorator",
+        "Strategy",
+        "Factory",
+        "Adapter"
+      ],
+      "followups": [
+        "WASM plugins",
+        "Canary routing"
+      ],
+      "clar": [
+        [
+          "Third-party plugins?",
+          "Yes, need a stable API."
+        ]
+      ],
+      "track": "core",
+      "num": 93,
+      "path": "problems/L6-principal-level-frameworks/93-middleware-pipeline"
+    },
+    {
+      "slug": "orm-framework",
+      "title": "ORM / Data Mapper Framework",
+      "level": 6,
+      "difficulty": "Hard",
+      "minutes": 55,
+      "statement": "Design a lightweight ORM: entity mapping via metadata, repositories, query builder, relations with lazy/eager loading, unit of work with change tracking, transactions and migrations.",
+      "fr": [
+        "Entity metadata (decorators/annotations or config)",
+        "Repository CRUD",
+        "Query builder with type safety",
+        "Relations: one-to-many, many-to-many; lazy/eager",
+        "Unit of Work: identity map, dirty checking, flush order",
+        "Transactions and nested savepoints",
+        "Dialect abstraction"
+      ],
+      "nfr": [
+        "Avoid N+1 by design",
+        "Extensible dialects",
+        "Clear errors at mapping time"
+      ],
+      "constraints": [
+        "Relational databases"
+      ],
+      "edge": [
+        "Cyclic relations on save",
+        "Lazy load after session closed",
+        "Optimistic lock conflict"
+      ],
+      "behavior": [
+        "flush orders inserts by dependencies"
+      ],
+      "concepts": [
+        "Unit of Work",
+        "Identity Map",
+        "Data Mapper vs Active Record",
+        "Proxies for lazy loading"
+      ],
+      "patterns": [
+        "Unit of Work",
+        "Identity Map",
+        "Proxy",
+        "Builder",
+        "Strategy (dialects)"
+      ],
+      "followups": [
+        "Second-level cache"
+      ],
+      "clar": [
+        [
+          "Active Record or Data Mapper?",
+          "Data Mapper."
+        ]
+      ],
+      "track": "extended",
+      "num": 94,
+      "path": "problems/L6-principal-level-frameworks/94-orm-framework"
+    },
+    {
+      "slug": "plugin-host",
+      "title": "Extension Host for an IDE/CLI",
+      "level": 6,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design the extension system of a developer tool (like VS Code): extensions declare contributions in a manifest, activate lazily on events, call a versioned host API, run isolated from the core, and can be enabled, updated or disabled safely.",
+      "fr": [
+        "Manifest: id, version, engine compatibility, activation events, contributions (commands, views, settings)",
+        "Lazy activation",
+        "Versioned host API surface",
+        "Isolation (separate process/worker) with RPC",
+        "Dependency resolution between extensions",
+        "Permissions/capabilities",
+        "Disposal on deactivate"
+      ],
+      "nfr": [
+        "Faulty extension cannot freeze the host",
+        "API backward compatible across minor versions",
+        "Startup cost bounded"
+      ],
+      "constraints": [
+        "Hundreds of extensions"
+      ],
+      "edge": [
+        "Incompatible engine version",
+        "Extension leaks resources",
+        "Circular extension dependency"
+      ],
+      "behavior": [
+        "Contributions visible before activation"
+      ],
+      "concepts": [
+        "Plugin architecture",
+        "API versioning",
+        "RPC proxies",
+        "Lifecycle"
+      ],
+      "patterns": [
+        "Proxy",
+        "Registry",
+        "Observer",
+        "Facade",
+        "Disposable"
+      ],
+      "followups": [
+        "Marketplace and signing"
+      ],
+      "clar": [
+        [
+          "Isolation?",
+          "Yes, out-of-process."
+        ]
+      ],
+      "track": "extended",
+      "num": 95,
+      "path": "problems/L6-principal-level-frameworks/95-plugin-host"
+    },
+    {
+      "slug": "entitlements-platform",
+      "title": "Multi-Tenant Entitlements & Plans Platform",
+      "level": 6,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design a platform other product teams use to define plans, features and usage quotas, check entitlements at runtime (can tenant X use feature Y, how much quota left), and evolve plans without breaking existing customers.",
+      "fr": [
+        "Features: boolean, limit, metered",
+        "Plans as bundles; add-ons; tenant overrides",
+        "Runtime checks via SDK with local cache",
+        "Quota consumption with atomic decrements and reset periods",
+        "Grandfathering on plan changes",
+        "Audit and explain"
+      ],
+      "nfr": [
+        "Check latency < 1 ms in SDK",
+        "Tenant isolation",
+        "Backward-compatible schema evolution"
+      ],
+      "constraints": [
+        "50k tenants"
+      ],
+      "edge": [
+        "Quota race at limit",
+        "Plan migration mid-period",
+        "SDK offline"
+      ],
+      "behavior": [
+        "Entitlement resolution order: override > add-on > plan > default"
+      ],
+      "concepts": [
+        "Configuration as data",
+        "Versioning",
+        "Caching with invalidation"
+      ],
+      "patterns": [
+        "Strategy",
+        "Composite",
+        "Proxy",
+        "Observer"
+      ],
+      "followups": [
+        "Self-serve plan builder UI"
+      ],
+      "clar": [
+        [
+          "Metered quotas?",
+          "Yes."
+        ]
+      ],
+      "track": "extended",
+      "num": 96,
+      "path": "problems/L6-principal-level-frameworks/96-entitlements-platform"
+    },
+    {
+      "slug": "observability-sdk",
+      "title": "Observability SDK (Tracing, Metrics, Logs)",
+      "level": 6,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design an OpenTelemetry-like SDK: tracer/span API, context propagation across async boundaries and services, sampling, processors and exporters, metrics instruments, and log correlation, usable by all teams without vendor lock-in.",
+      "fr": [
+        "Tracer → Span with attributes, events, status",
+        "Context propagation (W3C traceparent)",
+        "Samplers: always, ratio, parent-based, tail",
+        "Span processors (batch) and exporters",
+        "Metrics instruments",
+        "Auto-instrumentation hooks",
+        "Resource attributes"
+      ],
+      "nfr": [
+        "Near-zero overhead when sampled out",
+        "Never crash the host",
+        "Stable API, swappable SDK"
+      ],
+      "constraints": [
+        "High-throughput services"
+      ],
+      "edge": [
+        "Exporter backpressure",
+        "Lost context in callbacks",
+        "Clock skew across services"
+      ],
+      "behavior": [
+        "API is no-op without SDK installed"
+      ],
+      "concepts": [
+        "API vs SDK split",
+        "Context propagation",
+        "Pipeline design"
+      ],
+      "patterns": [
+        "Strategy",
+        "Decorator",
+        "Chain of Responsibility",
+        "Null Object",
+        "Facade"
+      ],
+      "followups": [
+        "Profiling signals"
+      ],
+      "clar": [
+        [
+          "Vendor neutral?",
+          "Yes."
+        ]
+      ],
+      "track": "extended",
+      "num": 97,
+      "path": "problems/L6-principal-level-frameworks/97-observability-sdk"
+    },
+    {
+      "slug": "dag-orchestrator",
+      "title": "DAG Workflow Orchestrator (Airflow-like)",
+      "level": 6,
+      "difficulty": "Hard",
+      "minutes": 55,
+      "statement": "Design a framework for defining and running DAGs of tasks: dependencies, scheduling, retries, backfills, task operators, executors (local, distributed), XCom-style data passing and observability.",
+      "fr": [
+        "Define DAG in code; validate acyclic",
+        "Operators pluggable",
+        "Schedule runs; backfill date ranges",
+        "Executor abstraction",
+        "Retries, timeouts, trigger rules (all_success, one_failed)",
+        "Task state persistence and resume",
+        "Pass small results between tasks"
+      ],
+      "nfr": [
+        "Scheduler HA",
+        "Idempotent tasks encouraged by API",
+        "DAG versions"
+      ],
+      "constraints": [
+        "10k DAGs"
+      ],
+      "edge": [
+        "Upstream skipped",
+        "Worker lost",
+        "DAG changed during run"
+      ],
+      "behavior": [
+        "Task runs only when trigger rule satisfied"
+      ],
+      "concepts": [
+        "Topological scheduling",
+        "Executors",
+        "State persistence"
+      ],
+      "patterns": [
+        "Command",
+        "Strategy",
+        "Builder",
+        "Observer",
+        "Template method"
+      ],
+      "followups": [
+        "Dynamic task mapping"
+      ],
+      "clar": [
+        [
+          "Distributed?",
+          "Executor abstraction; local implementation fine."
+        ]
+      ],
+      "track": "extended",
+      "num": 98,
+      "path": "problems/L6-principal-level-frameworks/98-dag-orchestrator"
+    },
+    {
+      "slug": "schema-registry",
+      "title": "Schema Registry & Compatibility Checker",
+      "level": 6,
+      "difficulty": "Hard",
+      "minutes": 45,
+      "statement": "Design a schema registry for events and APIs: subjects with versioned schemas, compatibility modes (backward, forward, full, transitive), validation on register, serializer integration and evolution guidance.",
+      "fr": [
+        "Register schema under subject; versioning",
+        "Compatibility modes per subject",
+        "Compatibility checks for Avro/JSON Schema/Protobuf via pluggable checkers",
+        "Serializers fetch and cache by id",
+        "Deprecation and references between schemas",
+        "Diff and explain incompatibility"
+      ],
+      "nfr": [
+        "Checks deterministic",
+        "Formats pluggable",
+        "Global unique schema ids"
+      ],
+      "constraints": [
+        "10k subjects"
+      ],
+      "edge": [
+        "Removing a required field",
+        "Enum value added",
+        "Circular references"
+      ],
+      "behavior": [
+        "Incompatible registration rejected with explanation"
+      ],
+      "concepts": [
+        "Compatibility theory",
+        "Visitor over schemas",
+        "Caching"
+      ],
+      "patterns": [
+        "Strategy",
+        "Visitor",
+        "Registry"
+      ],
+      "followups": [
+        "Contract tests generation"
+      ],
+      "clar": [
+        [
+          "Formats?",
+          "JSON Schema first; pluggable."
+        ]
+      ],
+      "track": "extended",
+      "num": 99,
+      "path": "problems/L6-principal-level-frameworks/99-schema-registry"
+    },
+    {
+      "slug": "test-framework",
+      "title": "Unit Testing Framework (Jest/JUnit-like)",
+      "level": 6,
+      "difficulty": "Hard",
+      "minutes": 50,
+      "statement": "Design a testing framework: test discovery, suites and nested describes, lifecycle hooks, fixtures with scopes, assertions with rich diffs, parallel execution, mocks, and pluggable reporters.",
+      "fr": [
+        "Discover tests by convention",
+        "Suites, nesting, before/after hooks",
+        "Fixtures with scope (test, suite, session) and dependency injection",
+        "Assertions library with matchers and diffs",
+        "Parallel workers with isolation",
+        "Mocks/spies",
+        "Reporters: console, JUnit XML, JSON",
+        "Filtering and retries for flaky tests"
+      ],
+      "nfr": [
+        "Deterministic ordering option",
+        "Extensible matchers and reporters",
+        "Fast startup"
+      ],
+      "constraints": [
+        "10k tests"
+      ],
+      "edge": [
+        "Hook failure",
+        "Test timeout",
+        "Shared state leaking between tests"
+      ],
+      "behavior": [
+        "Failure in beforeAll marks suite tests as failed with cause"
+      ],
+      "concepts": [
+        "Template method lifecycle",
+        "Observer reporters",
+        "DI for fixtures"
+      ],
+      "patterns": [
+        "Template method",
+        "Observer",
+        "Composite",
+        "Strategy",
+        "Proxy (mocks)"
+      ],
+      "followups": [
+        "Snapshot testing",
+        "Watch mode"
+      ],
+      "clar": [
+        [
+          "Parallelism?",
+          "Process-level workers."
+        ]
+      ],
+      "track": "extended",
+      "num": 100,
+      "path": "problems/L6-principal-level-frameworks/100-test-framework"
+    }
+  ]
+}
