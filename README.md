@@ -9,6 +9,10 @@
 ![Problems](https://img.shields.io/badge/problems-100-1f6b5a)
 ![Core](https://img.shields.io/badge/core-41-2f7a3c)
 ![Extended](https://img.shields.io/badge/extended-59-7c848a)
+![Solved](https://img.shields.io/badge/solved-0%2F100-a2620d)
+![Java](https://img.shields.io/badge/Java-21-b07219)
+![JUnit](https://img.shields.io/badge/tests-JUnit%205-25a162)
+![Gradle](https://img.shields.io/badge/build-Gradle-02303a)
 
 </div>
 
@@ -58,10 +62,10 @@ This repo is a structured practice log. Every problem has a written specificatio
 | 1. Read only the problem statement | 1 min | — |
 | 2. Clarify scope, actors, scale, invariants, change axes | 5 min | `DESIGN.md` §1 |
 | 3. Model entities, relationships and interfaces | 15 min | Class diagram, pattern choices |
-| 4. Implement the core classes and main flows | 20 min | `src/` |
+| 4. Implement the core classes and main flows | 20 min | `src/main/java` |
 | 5. Extend with one follow-up and note what changed | 5 min | `DESIGN.md` §9 |
 | 6. Mock interview and scored debrief | — | `FEEDBACK.md` |
-| 7. Refactor, add tests for every FR and edge case | — | `tests/` |
+| 7. Refactor, add tests for every FR and edge case | — | `src/test/java` |
 | 8. Revise at +7 and +30 days: redesign from a blank page in 15 min | 15 min | Updated status |
 
 ## Roadmap
@@ -334,6 +338,9 @@ Every mock interview is scored out of 100. Full rubric: [`docs/evaluation-rubric
 ```
 .
 ├── README.md                 # this file
+├── settings.gradle.kts       # auto-discovers every problem folder as a subproject
+├── build.gradle.kts          # Java 21, JUnit 5, AssertJ for all problems
+├── gradlew / gradle/         # Gradle wrapper
 ├── PROGRESS.md               # per-problem tracker with dates and scores
 ├── problems.json             # machine-readable catalogue of all problems
 ├── docs/
@@ -349,8 +356,9 @@ Every mock interview is scored out of 100. Full rubric: [`docs/evaluation-rubric
             ├── REQUIREMENTS.md   # full specification
             ├── DESIGN.md         # class diagram, patterns, SOLID check, trade-offs
             ├── FEEDBACK.md       # mock interview scorecard
-            ├── src/
-            └── tests/
+            └── src/
+                ├── main/java/com/lld/parkinglot/
+                └── test/java/com/lld/parkinglot/
 ```
 
 ## Running the code
@@ -358,23 +366,32 @@ Every mock interview is scored out of 100. Full rubric: [`docs/evaluation-rubric
 ```bash
 git clone https://github.com/<your-username>/lld-mastery.git
 cd lld-mastery
-npm install
 
-# run every test
-npm test
+# run every problem's tests
+./gradlew test
 
-# run one problem's tests
-npm test -- parking-lot
+# run one problem (subproject name = folder name without the number)
+./gradlew :parking-lot:test
+
+# list all problem subprojects
+./gradlew projects
 ```
+
+Requirements: JDK 21. The Gradle wrapper downloads Gradle on first run; no global install needed.
+
+Each problem is an independent Gradle subproject with the standard Maven layout, so you can open the repo root in IntelliJ IDEA and every problem appears as a module.
 
 ## Conventions
 
 - **One problem, one folder.** Folder names are `NN-kebab-case`, numbered within the repo so they sort in roadmap order.
 - **Design before code.** `DESIGN.md` is filled in before anything goes into `src/`.
+- **Packages.** Each problem lives in `com.lld.<problem>` (e.g. `com.lld.parkinglot`), split into sub-packages such as `model`, `service`, `strategy`, `repository` and `exception` once it grows past a handful of classes.
+- **Java idioms.** Records for value objects, enums for closed sets, sealed interfaces where the set of subtypes is fixed, `Optional` for absent results, and custom unchecked exceptions for domain errors.
 - **Every pattern has a reason.** The design worksheet names the requirement that forced each pattern.
-- **Money is never a float.** Amounts use integer minor units (paise) or a decimal type.
-- **Time is injected.** No `new Date()` inside domain logic; a `Clock` is passed in so tests are deterministic.
-- **Tests map to the spec.** At least one test per functional requirement (`FR1`, `FR2`…) and edge case (`EC1`…), named after the ID.
+- **Money is never a `double`.** Amounts use `long` paise or `BigDecimal` with an explicit `RoundingMode`.
+- **Time is injected.** No `LocalDateTime.now()` inside domain logic; a `java.time.Clock` is passed in, and tests use `Clock.fixed(...)`.
+- **Tests map to the spec.** At least one JUnit 5 test per functional requirement and edge case, tagged with its ID, e.g. `@DisplayName("FR3: assigns nearest compatible spot")`.
+- **Concurrency is tested.** Thread-safety claims get a test using `ExecutorService` + `CountDownLatch` that hammers the shared resource.
 - **Commits** follow `feat(parking-lot): add pricing strategy`, `test(atm): cover dispense failure`, `docs(splitwise): add design`.
 
 ## References
@@ -383,7 +400,8 @@ npm test -- parking-lot
 - *Design Patterns: Elements of Reusable Object-Oriented Software* — Gamma, Helm, Johnson, Vlissides
 - *Clean Architecture* — Robert C. Martin
 - *Implementing Domain-Driven Design* — Vaughn Vernon
-- *Java Concurrency in Practice* — Brian Goetz (concepts apply to any language)
+- *Effective Java* (3rd ed.) — Joshua Bloch
+- *Java Concurrency in Practice* — Brian Goetz
 - [Refactoring Guru — design patterns catalogue](https://refactoring.guru/design-patterns)
 
 ---
