@@ -363,7 +363,7 @@ Every mock interview is scored out of 100. Full rubric: [`docs/evaluation-rubric
 ## Running the code
 
 ```bash
-git clone https://github.com/<your-username>/lld-mastery.git
+git clone https://github.com/<your-username>/lld.git
 cd lld-mastery
 
 # run every problem's tests
