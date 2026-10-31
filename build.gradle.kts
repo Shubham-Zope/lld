@@ -11,9 +11,6 @@ allprojects {
 subprojects {
     apply(plugin = "java")
 
-    java {
-        toolchain { languageVersion.set(JavaLanguageVersion.of(21)) }
-    }
 
     dependencies {
         "testImplementation"(platform("org.junit:junit-bom:5.11.4"))
@@ -23,6 +20,7 @@ subprojects {
     }
 
     tasks.withType<JavaCompile>().configureEach {
+        options.release.set(21)   // compile for Java 21 with any installed JDK 21+
         options.encoding = "UTF-8"
         options.compilerArgs.addAll(listOf("-Xlint:all", "-parameters"))
     }
