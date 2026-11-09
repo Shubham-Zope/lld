@@ -4,7 +4,7 @@ import com.shubham.employeedirectory.exception.CycleException;
 import com.shubham.employeedirectory.exception.DuplicateEmployeeException;
 import com.shubham.employeedirectory.exception.InvalidOperationException;
 import com.shubham.employeedirectory.model.Employee;
-import com.shubham.employeedirectory.service.EmployeeDirectoryService;
+import com.shubham.employeedirectory.model.EmployeeDirectoryService;
 
 public final class Main {
 
@@ -94,6 +94,19 @@ public final class Main {
     try {
       directory.addEmployee("E6", "Someone Else", "E2", "Engineering", "SDE3", "NYC");
     } catch (DuplicateEmployeeException e) {
+      System.out.println("Rejected: " + e.getMessage());
+    }
+
+    System.out.println("\n=== Depth cap: hiring past level 20 below the CEO is rejected ===");
+    String deepest = "E1";
+    for (int level = 1; level <= 20; level++) {
+      String id = "D" + level;
+      directory.addEmployee(id, "Chain " + level, deepest, "Engineering", "SDE", "NYC");
+      deepest = id;
+    }
+    try {
+      directory.addEmployee("TOO_DEEP", "One Level Too Many", deepest, "Engineering", "SDE", "NYC");
+    } catch (InvalidOperationException e) {
       System.out.println("Rejected: " + e.getMessage());
     }
   }

@@ -6,9 +6,9 @@ import java.util.Set;
 
 /**
  * A node in the org chart (Composite): every employee uniformly holds a manager reference and a set
- * of direct reports, so the whole hierarchy is a tree of the same type. Structural fields (manager,
- * direct reports) are mutated only by {@code EmployeeDirectoryService}, which owns the tree
- * invariants.
+ * of direct reports, so the whole hierarchy is a tree of the same type. The only structural mutator,
+ * {@link #reparentTo}, is package-private, so only {@code EmployeeDirectoryService} (same package)
+ * can change the tree; every other caller only ever sees read-only methods.
  */
 public final class Employee {
 
@@ -57,20 +57,20 @@ public final class Employee {
     return List.copyOf(directReports);
   }
 
-  public void setManager(Employee manager) {
-    this.manager = manager;
-  }
-
-  public void addDirectReport(Employee report) {
-    directReports.add(report);
-  }
-
-  public void removeDirectReport(Employee report) {
-    directReports.remove(report);
-  }
-
-  public void clearDirectReports() {
-    directReports.clear();
+  /**
+   * Moves this employee under {@code newManager} (or detaches it from the tree if {@code null}),
+   * updating both sides of the relationship atomically so {@code manager} and {@code directReports}
+   * can never go out of sync. Package-private: only {@code EmployeeDirectoryService} may call this,
+   * and only after it has checked the cycle, CEO and depth invariants.
+   */
+  void reparentTo(Employee newManager) {
+    if (manager != null) {
+      manager.directReports.remove(this);
+    }
+    manager = newManager;
+    if (newManager != null) {
+      newManager.directReports.add(this);
+    }
   }
 
   /** Iterator pattern: lazy, non-recursive traversal of this employee and all reports. */

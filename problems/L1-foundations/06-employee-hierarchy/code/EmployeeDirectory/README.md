@@ -26,6 +26,7 @@ reporting hierarchy, with HR write operations and read-heavy org-chart queries.
   - Rejects the move if the new manager is the employee themself or already reports to them
     (directly or indirectly) — no cycles, ever.
   - Rejects moving the CEO (they have no manager to move under).
+  - Rejects the move if it would push any report past the 20-level depth cap.
 - `removeEmployee` reassigns the removed employee's direct reports to the removed employee's own
   manager; removing the CEO is rejected.
 - Queries: direct reports, full subtree, chain up to the CEO, lowest common manager of two
@@ -47,9 +48,16 @@ reporting hierarchy, with HR write operations and read-heavy org-chart queries.
   employee and all of their reports, exposed as `Employee.subtree()`. Used by `getSubtree` and kept
   separate from the Visitor so a caller can also stream a huge subtree lazily instead of visiting
   it eagerly.
-- **Aggregate root / facade** — `EmployeeDirectoryService` is the only place that mutates the tree.
-  It owns the id index, the single-CEO invariant, the no-cycle check, and the cached department/
-  location headcount maps (incremented or decremented on every add/remove instead of recomputed).
+- **Aggregate root / facade** — `EmployeeDirectoryService` owns the id index, the single-CEO
+  invariant, the no-cycle check, the 20-level depth cap, and the cached department/location
+  headcount maps (incremented or decremented on every add/remove instead of recomputed).
+  It is the *only* class that can restructure the tree: `Employee`'s sole structural mutator,
+  `reparentTo`, is package-private, and `EmployeeDirectoryService` lives in the same `model`
+  package specifically so it is the only other class with access. `reparentTo` also updates
+  `manager` and `directReports` together in one call, so the two sides can never go out of sync
+  — not even from a bug inside the service itself. A caller that gets a live `Employee` back from
+  `getEmployee`/`getDirectReports`/etc. is handed a read-only view in practice: there is no public
+  method on it that changes the tree.
 
 ## Complexity (why this is fine at 100k employees)
 
@@ -58,8 +66,8 @@ common manager) is **O(depth) ≤ 20**, independent of company size:
 
 | Operation | Cost |
 |---|---|
-| `addEmployee` | O(1) |
-| `moveEmployee` | O(depth) for the cycle check; O(k) to reassign k direct reports when `withSubtree=false` |
+| `addEmployee` | O(depth) — depth check walks up to the manager |
+| `moveEmployee` | O(depth) for the cycle/depth checks; `withSubtree=true` additionally pays O(height of the moved subtree) to check the depth cap; O(k) to reassign k direct reports when `withSubtree=false` |
 | `removeEmployee` | O(k), k = the removed employee's direct reports |
 | `getDirectReports` | O(k) |
 | `getSubtree` | O(size of that subtree) |
@@ -71,6 +79,8 @@ common manager) is **O(depth) ≤ 20**, independent of company size:
 
 - Moving a manager under their own (direct or indirect) report → `CycleException`.
 - Moving or removing the CEO → `InvalidOperationException`.
+- Adding or moving an employee such that they (or, when moving a subtree, any of their reports)
+  would land past depth 20 → `InvalidOperationException`.
 - An employee with no department (`department == null`) is excluded from department headcount but
   still counted by location.
 - Adding a duplicate employee id → `DuplicateEmployeeException`.

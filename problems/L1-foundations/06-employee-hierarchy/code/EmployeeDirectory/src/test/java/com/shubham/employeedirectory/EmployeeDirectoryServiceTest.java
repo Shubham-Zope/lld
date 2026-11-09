@@ -5,7 +5,9 @@ import com.shubham.employeedirectory.exception.DuplicateEmployeeException;
 import com.shubham.employeedirectory.exception.EmployeeNotFoundException;
 import com.shubham.employeedirectory.exception.InvalidOperationException;
 import com.shubham.employeedirectory.model.Employee;
-import com.shubham.employeedirectory.service.EmployeeDirectoryService;
+import com.shubham.employeedirectory.model.EmployeeDirectoryService;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -170,6 +172,56 @@ class EmployeeDirectoryServiceTest {
     void addingADuplicateEmployeeIdIsRejected() {
         assertThrows(DuplicateEmployeeException.class,
                 () -> directory.addEmployee("E6", "Someone Else", "E2", "Engineering", "SDE", "NYC"));
+    }
+
+    @Test // encapsulation: only EmployeeDirectoryService (same package) may restructure the tree
+    void employeeExposesNoPublicWayToMutateTheTree() {
+        for (Method method : Employee.class.getDeclaredMethods()) {
+            if (method.getName().equals("reparentTo")) {
+                assertFalse(Modifier.isPublic(method.getModifiers()),
+                        "Employee.reparentTo must stay package-private, or any caller holding an "
+                                + "Employee from getEmployee()/getDirectReports()/etc. could bypass the "
+                                + "cycle/CEO/depth checks and desync manager <-> directReports directly");
+            }
+        }
+    }
+
+    @Test // constraint: "Depth up to 20 levels" (the CEO is depth 0)
+    void addEmployeeBeyondMaxDepthIsRejected() {
+        EmployeeDirectoryService deepDirectory = new EmployeeDirectoryService();
+        String deepest = addChain(deepDirectory, "ROOT", 20);
+        assertEquals(21, deepDirectory.getChainToCeo(deepest).size()); // ROOT + 20 levels, right at the cap
+
+        assertThrows(InvalidOperationException.class,
+                () -> deepDirectory.addEmployee("TOO_DEEP", "Too Deep", deepest, "Engineering", "SDE", "NYC"));
+    }
+
+    @Test // moving a whole subtree must not push any of its reports past the depth cap
+    void moveEmployeeWithSubtreeIsRejectedIfAnyReportWouldExceedMaxDepth() {
+        EmployeeDirectoryService deepDirectory = new EmployeeDirectoryService();
+        String deepest = addChain(deepDirectory, "ROOT", 19); // deepest is at depth 19
+        deepDirectory.addEmployee("TEAM", "Team Lead", "ROOT", "Sales", "Manager", "SF"); // depth 1
+        deepDirectory.addEmployee("MEMBER", "Team Member", "TEAM", "Sales", "SDE", "SF"); // depth 2, height(TEAM) = 1
+
+        // TEAM (+ MEMBER) under "deepest" would put TEAM at depth 20 and MEMBER at depth 21: rejected.
+        assertThrows(InvalidOperationException.class, () -> deepDirectory.moveEmployee("TEAM", deepest, true));
+
+        // Moving TEAM alone leaves MEMBER behind at ROOT, so TEAM landing at depth 20 is still within the cap.
+        deepDirectory.moveEmployee("TEAM", deepest, false);
+        assertEquals(deepest, deepDirectory.getEmployee("TEAM").getManager().getId());
+        assertEquals("ROOT", deepDirectory.getEmployee("MEMBER").getManager().getId());
+    }
+
+    /** Adds a chain of {@code levels} employees below {@code rootId}, each reporting to the previous one. */
+    private static String addChain(EmployeeDirectoryService directory, String rootId, int levels) {
+        directory.addEmployee(rootId, "Root", null, null, "CEO", "NYC");
+        String previous = rootId;
+        for (int level = 1; level <= levels; level++) {
+            String id = "L" + level;
+            directory.addEmployee(id, "Level " + level, previous, "Engineering", "SDE", "NYC");
+            previous = id;
+        }
+        return previous;
     }
 
     private static List<String> idsOf(List<Employee> employees) {
