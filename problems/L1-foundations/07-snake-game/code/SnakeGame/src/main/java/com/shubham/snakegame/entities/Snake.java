@@ -18,7 +18,7 @@ public class Snake {
     this.snake.addFirst(pos);
   }
 
-  public void removeTail(Position pos) {
+  public void removeTail() {
     this.snake.removeLast();
   }
 

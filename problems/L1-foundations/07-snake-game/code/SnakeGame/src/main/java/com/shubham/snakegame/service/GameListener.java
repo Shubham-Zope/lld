@@ -3,9 +3,9 @@ package com.shubham.snakegame.service;
 import com.shubham.snakegame.enums.GameReason;
 
 public interface GameListener {
-  void onFootEaten();
+  void onFoodEaten();
 
   void onFoodSpawned();
 
-  GameReason onGameOver(String reason);
+  void onGameOver(GameReason reason);
 }

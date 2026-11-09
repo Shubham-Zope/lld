@@ -21,6 +21,14 @@ public class Board {
     return grid[x][y];
   }
 
+  public void markSnake(int x, int y) {
+    grid[x][y].setSnakePresent(true);
+  }
+
+  public void unmarkSnake(int x, int y) {
+    grid[x][y].setSnakePresent(false);
+  }
+
   public int getWidth() {
     return width;
   }
