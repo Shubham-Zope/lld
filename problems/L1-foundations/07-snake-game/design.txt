@@ -1,0 +1,83 @@
+Entities:
+
+1. Position
+2. Direction
+3. Board
+4. Snake
+5. Food
+6. Score
+7. GameConfig
+8. TickResult
+9. Game
+
+Responsibilities:
+
+1. Position: Holds x (width index), y (height index) and snakePresent (default false).
+             Only Game changes snakePresent, and only through Board.
+2. Direction: Enum UP, DOWN, LEFT, RIGHT. Each one holds dx, dy and knows its opposite().
+              Example: RIGHT -> dx=1, dy=0, opposite = LEFT.
+3. Board: Holds width w and height h and a Position[h][w] grid.
+          Can tell if a position is inside the board, mark/unmark a cell as snake,
+          and return the cell at (x, y). Total cells = w * h.
+4. Snake: Holds the Deque of Positions. Head is at the front, tail is at the back.
+          Can addHead(pos), removeTail(), head(), tail(), size().
+          It does NOT keep its own set (Board's flags are the single source of truth).
+5. Food: Holds one Position. Always a cell where snakePresent is false.
+6. Score: Holds an integer, default 0. Can increment.
+7. GameConfig: width, height, wrapAround (true/false), starting snake length, random seed.
+               Checks the board is big enough for the snake plus one food.
+8. TickResult: What tick() returns: MOVED, ATE, or GAME_OVER with a reason (WALL, SELF, BOARD_FULL_WIN).
+9. Game: Owns Board, Snake, Food, Score, current Direction, pending Direction, GameState and listeners.
+         - tick(): moves the snake one cell and returns a TickResult
+         - changeDirection(d): ignores d if it is the opposite of the last moved direction
+         - Keeps one pending direction, and the last valid input before the tick wins
+         - Spawns food using the injected RandomSource
+         - Has no rendering code and no timer. A separate loop calls tick().
+
+Behavioural Classes and principles:
+
+1. BoundaryRule (Strategy): resolve(nextPosition, board) returns the final position, or null if the move is blocked.
+   - WallBoundary: outside the board returns null (GAME_OVER, WALL)
+   - WrapBoundary: x = -1 becomes w-1, x = w becomes 0 (same for y)
+2. SnakeSelfEatRule: Next cell has the snake on it AND (snake is eating OR next cell is not the tail)
+                     -> GAME_OVER, SELF.
+                     Example: the tail is leaving this tick, so stepping into it is safe,
+                     unless we are eating, because then the tail stays.
+3. AllCellsFilledRule: Checked only right after eating. If snake size == w * h,
+                       return GAME_OVER with BOARD_FULL_WIN and do not spawn food.
+4. RandomSource: Interface with nextInt(bound). The real one uses Random.
+                 Tests pass a fake one that returns fixed values, so food lands where you expect.
+5. FoodSpawner: Uses RandomSource to pick random cells until it finds one with snakePresent = false.
+6. GameState (State): Running, Paused, Over. Each state decides what tick() and changeDirection() do.
+                      Over ignores everything. Paused ignores tick().
+7. GameListener (Observer): Interface with onFoodEaten(), onGameOver(reason) and onFoodSpawned().
+                            Game calls these after the move is done.
+8. ScoreUpdater: Implements GameListener. On onFoodEaten() it increases Score.
+                 (Growing the snake is NOT an observer. It lives inside tick(), because
+                  growing just means "don't remove the tail this tick".)
+9. UI/Renderer listener: Implements GameListener and reads a read-only view of the game to draw it.
+
+Tick flow:
+
+1. If the state is not Running, return and do nothing
+2. Apply the pending direction
+3. next = head + direction, then boundary rule resolves it (wall: game over, wrap: wrap around)
+4. willEat = next equals food position
+5. Self-collision check (see rule 2)
+6. If not eating: remove the tail and unmark its cell. Then add next as the head and mark it
+7. If eating: add next as the head, mark it, and keep the tail. The snake grew by one
+8. On eat: notify listeners (score goes up), run the all-cells-filled check, spawn new food
+9. Return MOVED, ATE or GAME_OVER(reason)
+
+Edge cases covered:
+
+1. Reverse input: compared with the last moved direction, so it is ignored
+2. Two inputs between ticks: only one pending slot, and the last valid input wins
+3. Tail's cell: safe when not eating, collision when eating
+4. No free cell for food: win, and no spawn is attempted
+
+Extensions:
+
+1. Obstacles/levels: obstacle cells on the Board plus an ObstacleRule. A level is a GameConfig with obstacles
+2. Two players: Game holds a list of Snakes, each with its own direction. Add a head-to-head collision rule
+3. Speed up with score: a SpeedPolicy strategy turns score into a tick interval, and the game loop reads it
