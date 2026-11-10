@@ -1,0 +1,101 @@
+Entities:
+
+1. CellState
+2. Cell
+3. Board
+4. Difficulty
+5. GameConfig
+6. RevealResult
+7. Game
+
+Responsibilities:
+
+1. CellState: Enum HIDDEN, REVEALED, FLAGGED. A cell is always in exactly one of these.
+2. Cell: Holds row, col, isMine (default false), adjacentMines (default 0) and CellState (default HIDDEN).
+         Only Game (through MinePlacer / FloodFiller) changes it.
+3. Board: Holds rows R, cols C and a Cell[R][C] grid.
+          Can tell if (r, c) is inside the board, return the cell at (r, c),
+          return the up-to-8 neighbours of a cell, and compute adjacentMines for every cell
+          once the mines are placed. Total cells = R * C.
+4. Difficulty: Enum of presets. Each one holds rows, cols, mines.
+               BEGINNER = 9x9 / 10, INTERMEDIATE = 16x16 / 40, EXPERT = 16x30 / 99.
+5. GameConfig: rows, cols, mine count, safeNeighbours (true/false), random seed.
+               Checks 1 <= rows, cols <= 500 and 0 <= mines < R * C - 9 (otherwise "mine count too high").
+               safeNeighbours = true means the first click AND its 8 neighbours are never mines,
+               so the first click always opens a region.
+6. RevealResult: What reveal() and chord() return: the list of cells newly revealed by this call
+                 and the GameState after the call. A no-op returns an empty list.
+7. Game: Owns Board, GameConfig, MinePlacer, FloodFiller, GameState, revealedSafeCount, flagCount and listeners.
+         - reveal(r, c): reveals a cell and returns a RevealResult
+         - toggleFlag(r, c): HIDDEN <-> FLAGGED, returns true if something changed
+         - chord(r, c): on a revealed number whose flagged neighbours == number, reveals the other neighbours
+         - Places mines lazily on the first reveal (not in the constructor)
+         - Has no rendering code. Main / a UI reads the Board and calls these methods.
+
+Behavioural Classes and principles:
+
+1. RandomSource: Interface with nextInt(bound). The real one wraps a seeded java.util.Random.
+                 Same seed -> same mine layout, so tests are repeatable.
+2. MinePlacer (Strategy): placeMines(board, mineCount, excludedCells).
+   - RandomMinePlacer: collects every cell not in excludedCells, then does a partial Fisher-Yates
+     shuffle and marks the first M as mines. O(R * C), no "retry until free" loop.
+   - Tests pass a fixed placer (a lambda) that puts mines exactly where the test wants.
+3. Lazy initialisation: the board starts with no mines. On the first reveal(r, c) Game builds the
+                        excluded set (the cell, plus its neighbours if safeNeighbours), calls the placer,
+                        then board.computeAdjacentCounts(). This is how "first click is never a mine" works.
+4. FloodFiller (BFS): reveal(board, start) uses an ArrayDeque, never recursion, so a 500x500 board of
+                      zeros cannot overflow the stack.
+                      - Reveal start. If start.adjacentMines == 0, push it.
+                      - Pop a cell, look at its neighbours: each HIDDEN non-mine neighbour is revealed
+                        (marked when pushed, so nothing is visited twice). Zeros are pushed again,
+                        numbers are revealed but not expanded.
+                      - FLAGGED cells are skipped, the player's flag wins over the flood.
+                      Returns every cell it revealed.
+5. GameState (State): READY (mines not placed yet), PLAYING, WON, LOST.
+                      Each state decides canReveal() / canFlag(). WON and LOST ignore everything.
+                      READY -> PLAYING on the first reveal. PLAYING -> WON / LOST.
+6. GameConfigFactory (Factory): fromDifficulty(Difficulty, seed) and custom(rows, cols, mines, seed).
+                                Callers never pick numbers for the presets themselves.
+7. GameListener (Observer): Interface with onCellsRevealed(cells), onFlagToggled(cell) and onGameOver(state).
+                            Game calls these after the action is done. A renderer or a timer listens.
+
+Reveal flow:
+
+1. If the state cannot reveal (WON / LOST), return an empty result with the current state
+2. If (r, c) is outside the board, throw IllegalArgumentException
+3. If the cell is not HIDDEN (FLAGGED or already REVEALED), return an empty result
+4. If the state is READY: place mines excluding this cell (and its neighbours), compute counts, go to PLAYING
+5. If the cell is a mine: reveal it, go to LOST, notify, return [that cell] + LOST
+6. Otherwise run FloodFiller from this cell (a number reveals only itself, a zero floods)
+7. revealedSafeCount += newly revealed. If it equals R * C - M, go to WON
+8. Notify listeners, return the newly revealed cells + state
+
+Chord flow:
+
+1. Only works on a REVEALED cell with adjacentMines > 0, while PLAYING
+2. Count FLAGGED neighbours. If it is not equal to adjacentMines, do nothing
+3. For each HIDDEN neighbour: if it is a mine -> reveal it, LOST, stop.
+                              else -> FloodFiller from it and collect the cells
+4. Same win check and notify as reveal
+
+Edge cases covered:
+
+1. Reveal a flagged cell: no-op, empty result (unflag first)
+2. Chord with wrong flags: a hidden neighbour is a mine, so the chord reveals it and the game is LOST
+3. Reveal / flag / chord after game over: no-op, empty result with WON / LOST
+4. Mine count too high: GameConfig throws IllegalArgumentException before a game exists
+5. Flag a revealed cell: no-op, returns false
+6. Flags placed before the first click: allowed. The flagged cells can still get mines
+7. Out-of-bounds coordinates: IllegalArgumentException
+
+Extensions:
+
+1. Undo last reveal (practice mode): reveal / chord already return the newly revealed cells.
+   Keep a stack of (revealedCells, previousState). undo() pops it, sets those cells back to HIDDEN,
+   subtracts them from revealedSafeCount and restores the state (so LOST -> PLAYING works).
+   Only allowed when the config says practiceMode. (Command / Memento)
+2. Hint system: a HintProvider strategy returns a cell that is safe to reveal.
+   - CheatHint: any HIDDEN non-mine cell (it reads the mines)
+   - DeductionHint: only uses revealed numbers, e.g. a number whose flags already match means
+     all its other hidden neighbours are safe. Returns null if no safe move is provable.
+3. Timer / best scores: a listener that starts on the first onCellsRevealed and stops on onGameOver
