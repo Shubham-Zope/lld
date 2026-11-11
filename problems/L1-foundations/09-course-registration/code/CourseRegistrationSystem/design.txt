@@ -1,0 +1,344 @@
+=====================================================================
+COURSE REGISTRATION SYSTEM - LLD
+=====================================================================
+
+---------------------------------------------------------------------
+1. Entities
+---------------------------------------------------------------------
+
+Course
+Section
+Student
+Instructor
+TimeSlot
+Term
+RegistrationWindow
+Enrollment
+Waitlist
+TimeTable
+Transcript
+RegistrationResult
+
+Enums:
+EnrollmentStatus   : ENROLLED, WAITLISTED, DROPPED, COMPLETED, FAILED, WITHDRAWN
+RejectionReason    : WINDOW_CLOSED, PREREQUISITE_MISSING, CREDIT_CAP_EXCEEDED,
+                     TIME_CLASH, ALREADY_ENROLLED, ALREADY_WAITLISTED,
+                     ALREADY_COMPLETED, SECTION_NOT_FOUND, DROP_DEADLINE_PASSED
+DayOfWeek          : MON..SUN
+
+---------------------------------------------------------------------
+2. Responsibilities
+---------------------------------------------------------------------
+
+Course:
+    courseId, name, credits, List<courseId> prerequisites, List<Section> sections.
+    Course owns "what" is taught. Prerequisites are stored as course IDs
+    (not object references) so the graph is easy to persist/validate.
+
+Section:
+    sectionId, courseId, termId, Instructor, List<TimeSlot> slots, capacity,
+    AtomicInteger / guarded int seatsTaken, Waitlist waitlist, ReentrantLock lock.
+    Section owns its seats. Only Section can reserve/release a seat
+    (tryReserveSeat(), releaseSeat()) so over-enrolment is impossible by design.
+
+Student:
+    studentId, name, year (1..4), maxCreditsPerTerm (default 24).
+    Student does NOT hold mutable credit counters; credits used in a term are
+    computed from ENROLLED enrollments (single source of truth, no drift).
+
+Instructor:
+    instructorId, name. Teaches sections. Instructor clash is checked when an
+    ADMIN creates/assigns a section (not during student registration).
+
+TimeSlot (value object, immutable):
+    day, startTime, endTime.
+    overlaps(TimeSlot other) -> same day && start < other.end && other.start < end
+
+Term:
+    termId, startDate, endDate, dropDeadline.
+
+RegistrationWindow:
+    termId, studentYear, opensAt, closesAt.
+    isOpen(year, now). Seniors get earlier windows -> this is how "priority
+    registration for seniors" is supported without changing core logic.
+
+Enrollment:
+    enrollmentId, studentId, sectionId, courseId, termId, status, grade (nullable),
+    createdAt. The only record that changes on register/drop/promote/complete.
+
+Waitlist:
+    Per section, ordered queue of studentIds (+ joinedAt).
+    add(studentId) -> position, remove(studentId), pollNext(), positionOf(studentId).
+    Ordering is pluggable via WaitlistOrderingPolicy (FIFO by default).
+
+TimeTable (read model):
+    Built from a student's ENROLLED enrollments in a term -> list of
+    (course, section, slots) grouped by day. Same for instructor from sections.
+    Not stored separately -> cannot go out of sync with enrollments.
+
+Transcript (read model):
+    Built from a student's enrollments across terms with status
+    COMPLETED / FAILED / WITHDRAWN / ENROLLED(in progress) + grade + credits.
+    Used by PrerequisitesValidator.
+
+RegistrationResult (sealed type / result object):
+    Enrolled(enrollmentId)
+    Waitlisted(position)
+    Rejected(List<RejectionReason> reasons)   <- plural, as spec requires
+
+---------------------------------------------------------------------
+3. Services / Classes and principles
+---------------------------------------------------------------------
+
+RegistrationService (facade / orchestrator)
+    RegistrationResult register(studentId, sectionId)
+    DropResult         drop(studentId, sectionId)
+    TimeTable          viewTimetable(studentId, termId)
+    Transcript         viewTranscript(studentId)
+
+    void               recordGrade(enrollmentId, grade, passed)
+
+    register flow:
+      1. Load student, section (repositories). Missing -> Rejected.
+      2. Take the student lock.
+      3. RegistrationContextLoader builds RegistrationContext(student, course,
+         section, term, now, active enrollments this term, transcript, timetable).
+      4. Run validation chain -> collect ALL failure reasons.
+         If any -> Rejected(reasons).
+         (Validating while holding the student lock means no re-check is needed:
+         only this student's own requests can change their credits / timetable.)
+      5. Take the section lock:
+            waitlist empty AND section.tryReserveSeat()
+                    -> save Enrollment(ENROLLED) -> Enrolled(id)
+            else    -> save Enrollment(WAITLISTED), waitlist.add(student)
+                       -> Waitlisted(enrollmentId, position)
+         A free seat with people waiting belongs to the queue, not the newcomer.
+      6. Release locks, publish events.
+
+    drop flow:
+      1. If enrollment not found -> error.
+      2. If status WAITLISTED -> remove from waitlist, mark DROPPED, done
+         (positions of others shift; publish WaitlistUpdated).
+      3. If now > term.dropDeadline -> reject (DROP_DEADLINE_PASSED) OR mark
+         WITHDRAWN (counts on transcript as "W", seat still freed). Policy choice:
+         configurable DropPolicy; default = reject.
+      4. Mark DROPPED, section.releaseSeat(), publish SeatFreed(sectionId).
+
+---- Validation chain (Chain of Responsibility) ----
+
+RegistrationValidator (abstract)
+    setNext(RegistrationValidator next)
+    validate(RegistrationContext ctx, List<RejectionReason> errors)
+        -> do own check, append reason if fails, then call next.
+    NOTE: changed from canEnroll(Student) -> the rule needs the section,
+    course, term and current enrollments, not just the student.
+    NOTE: chain COLLECTS all reasons (does not stop at first failure) because
+    the spec returns Rejected(reasons). A validator can be marked "fatal"
+    (e.g. window closed) to short-circuit if desired.
+
+    Order (cheap -> expensive):
+    1. RegistrationWindowValidator : window for student's year open for this term?
+    2. DuplicateRegistrationValidator: already enrolled/waitlisted in ANY
+                                     section of this course this term, or already
+                                     COMPLETED the course.
+    3. PrerequisitesValidator     : every prerequisite courseId is COMPLETED (passed)
+                                     in transcript. "In progress this term" -> see
+                                     edge cases (policy: PrerequisitePolicy).
+    4. CreditCapValidator          : creditsEnrolledThisTerm + course.credits <= 24
+    5. TimeClashValidator          : any slot of section overlaps any slot of the
+                                     student's ENROLLED sections this term.
+
+    Capacity is NOT a validator: seat availability is decided atomically by
+    Section.tryReserveSeat(); "full" means waitlist, not reject.
+
+    Wiring: the chain is linked with setNext() and only the head validator is
+    passed to RegistrationService:
+        window.setNext(duplicate).setNext(prereq).setNext(creditCap).setNext(clash)
+    (setNext returns the next validator so links can be chained.)
+    RegistrationService only calls head.validate(ctx, errors) and never knows
+    which validators exist.
+
+    Pluggable: adding a rule (e.g. CoRequisiteValidator) = new subclass of
+    RegistrationValidator + one setNext() link. No existing validator or the
+    service changes (Open/Closed).
+
+---- Waitlist + Observer ----
+
+CHANGE from original: "notify all students in the queue" is not what the spec
+asks. Spec asks AUTO-ENROL the next eligible student when a seat frees.
+Notifying everyone causes a thundering herd and races. So:
+
+EnrollmentEventPublisher (subject)
+    subscribe(EnrollmentEventListener), publish(EnrollmentEvent)
+
+EnrollmentEvent types (sealed):
+    StudentEnrolled, StudentWaitlisted(position), StudentPromoted,
+    WaitlistSkipped(studentId, reasons), StudentDropped(status),
+    SeatFreed(sectionId), WaitlistUpdated(order)
+
+Listeners (Observer):
+    WaitListPromoter        : on SeatFreed -> promote (logic below)
+    StudentNotificationListener : tells the student (email/in-app) about
+                              enrolled / promoted / skipped / new position
+    (future) AuditLogListener, AnalyticsListener
+
+WaitListPromoter.promote(section):
+    loop:
+      under section lock: if waitlist empty or no free seat -> stop.
+                          Reserve the free seat (HELD for the queue) and
+                          poll the head of the waitlist.
+      (section lock released)
+      under the candidate's student lock:
+        re-run validation chain (window check skipped - student already queued
+        in a valid window; duplicate check ignores their own waitlist entry)
+        valid   -> enrollment WAITLISTED -> ENROLLED, held seat is theirs,
+                   StudentPromoted; go round the loop for the next free seat
+        invalid -> enrollment WAITLISTED -> DROPPED, WaitlistSkipped(reasons);
+                   poll the next student and try again with the SAME held seat
+      queue ran out while holding a seat -> release it.
+    publish WaitlistUpdated (new order) so remaining students learn their place.
+
+    Because the seat is held (counted as taken) during the re-check, a newcomer
+    registering at that moment sees "full" and joins the queue - nobody can
+    jump the waitlist. No retry/re-queue is needed since the promoter never
+    holds the section lock while waiting for a student lock.
+
+---- Repositories (Repository pattern) ----
+
+CourseRepository      : findById, findAll
+SectionRepository     : findById, findByCourseAndTerm
+StudentRepository     : findById
+EnrollmentRepository  : save, findByStudentAndTerm, findByStudent,
+                        findByStudentAndSection, findBySection
+TermRepository / RegistrationWindowRepository
+In-memory impls with ConcurrentHashMap for now; swappable for DB.
+
+---------------------------------------------------------------------
+4. Concurrency (NFR: no over-enrolment)
+---------------------------------------------------------------------
+
+Two different races must be prevented:
+
+A) Two students, last seat (section-level race)
+   - Section.tryReserveSeat():
+        CAS loop on AtomicInteger seatsTaken: if taken < capacity then
+        compareAndSet(taken, taken+1) -> true, else false.
+     Only one CAS wins the last seat; loser goes to waitlist.
+   - Waitlist add/poll and seat reserve/release happen under the section's
+     ReentrantLock so "seat freed" and "someone joins waitlist" cannot
+     interleave and leave a free seat with a non-empty waitlist.
+     (Since we hold the lock anyway, a plain int guarded by the lock is
+     enough; AtomicInteger kept for lock-free reads of availability.)
+
+B) Same student, two concurrent registrations (student-level race)
+   - Two parallel requests could both pass credit cap / clash checks.
+   - Per-student lock (StudentLocks: ConcurrentHashMap<studentId, ReentrantLock>).
+     The whole validate + reserve runs while holding it.
+
+Lock ordering to avoid deadlock: ALWAYS student lock -> section lock.
+register, drop and recordGrade follow it. WaitListPromoter takes the section
+lock only for short steps (hold seat + poll, poll next, release seat) and
+takes a student lock only while holding NO section lock, so the order is
+never reversed.
+
+Events are published only after every lock is released, so listeners
+(promoter, notifications) never run inside a lock.
+
+Scale: 20k students, in-memory, lock per section/student -> no global lock,
+contention only on hot sections.
+
+---------------------------------------------------------------------
+5. Edge cases
+---------------------------------------------------------------------
+
+1. Prerequisite in progress this term
+   PrerequisitePolicy (strategy):
+     STRICT (default)     -> reject, only COMPLETED counts.
+     ALLOW_IN_PROGRESS    -> allowed for NEXT-term registration if the prereq
+                             is ENROLLED in current term; enrollment flagged
+                             "conditional" and auto-dropped if prereq FAILED
+                             when grades are posted.
+   Same-term prereq + course is always rejected.
+
+2. Drop after deadline
+   DropPolicy: reject with DROP_DEADLINE_PASSED (default) or allow as
+   WITHDRAWN ("W" on transcript, credits not earned). Either way, if a seat is
+   freed, SeatFreed fires and waitlist promotes.
+
+3. Waitlisted student now has a clash
+   Validation re-runs at promotion time; student skipped with
+   WaitlistSkipped(TIME_CLASH) and notified; next student is tried.
+   Seat never stays empty while an eligible student waits.
+
+4. Two students taking the last seat
+   Handled by section lock + CAS (section 4A). One Enrolled, other
+   Waitlisted(1).
+
+Additional edge cases (not in spec but needed):
+5. Student registers for 2 sections of the same course -> ALREADY_ENROLLED.
+6. Student already waitlisted then registers again -> ALREADY_WAITLISTED.
+7. Student drops while waitlisted -> just removed from queue, positions shift.
+8. Credits for waitlisted courses are NOT counted toward the cap (re-checked
+   at promotion), so a student can waitlist beyond 24 but only be enrolled
+   up to 24.
+9. Section capacity reduced by admin below seatsTaken -> no one is kicked,
+   simply no new seats until count drops below capacity.
+10. Course with a cyclic prerequisite -> impossible: CatalogService.addCourse
+    requires every prerequisite to exist already and never replaces a course,
+    so a new course can only point at older ones (no cycle, no DFS needed).
+11. Instructor teaching two overlapping sections in one term -> rejected by
+    CatalogService.addSection.
+
+---------------------------------------------------------------------
+6. Follow-up extensions
+---------------------------------------------------------------------
+
+Co-requisites:
+   Course gets List<courseId> coRequisites.
+   CoRequisiteValidator: co-req must be COMPLETED or ENROLLED this term.
+   For "register both together": RegistrationService.registerBundle(list)
+   -> validate all with the bundle treated as already enrolled, reserve seats
+   in sectionId order (deadlock-free), roll back reserved seats if any fails.
+   Dropping a course whose co-req is enrolled -> warn or cascade (policy).
+
+Priority registration for seniors:
+   Already handled by RegistrationWindow per year (seniors open earlier).
+   Additionally for waitlists: WaitlistOrderingPolicy strategy
+     FifoWaitlistPolicy (default)
+     SeniorityWaitlistPolicy -> PriorityQueue ordered by (year desc, joinedAt asc)
+   Position returned is computed by the policy.
+
+---------------------------------------------------------------------
+7. Patterns used
+---------------------------------------------------------------------
+
+Chain of Responsibility : RegistrationValidator chain
+Observer                : EnrollmentEventPublisher + listeners (WaitListPromoter,
+                          StudentNotificationListener)
+Repository              : Course/Section/Student/Enrollment repositories
+Strategy                : PrerequisitePolicy, DropPolicy, WaitlistOrderingPolicy
+Facade                  : RegistrationService
+Value Object            : TimeSlot, RegistrationResult
+
+---------------------------------------------------------------------
+8. Changes vs. first draft (review notes)
+---------------------------------------------------------------------
+
+- ADDED RegistrationService: no class owned register/drop/view before.
+- ADDED Enrollment entity: Student<->Section link with status; transcript,
+  timetable and credit totals are all derived from it.
+- ADDED Term + RegistrationWindow: needed for windows by year & drop deadline.
+- ADDED Waitlist as its own class per section (queue was implied only).
+- ADDED Repositories (pattern listed in spec, missing in draft).
+- ADDED DuplicateRegistrationValidator.
+- CHANGED canEnroll(Student) -> validate(RegistrationContext, errors):
+  validators need section/course/term too, and must collect all reasons.
+- CHANGED EnrollmentState -> RegistrationResult (Enrolled/Waitlisted/
+  Rejected(reasons)) + separate EnrollmentStatus enum for stored state.
+- CHANGED Student credit tracking: computed, not a mutable "pending" counter.
+- CHANGED SectionWaitListStudentListener "notify all" -> WaitlistPromoter
+  auto-enrols next eligible student; notifications are a separate listener.
+- CHANGED TimeTable to a derived read model (no duplicate state).
+- ADDED concurrency design (CAS seat counter, per-section and per-student
+  locks, lock ordering) - draft had none.
+- ADDED handling for all spec edge cases + extensions.
