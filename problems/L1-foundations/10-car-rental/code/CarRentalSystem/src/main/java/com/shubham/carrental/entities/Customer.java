@@ -3,10 +3,10 @@ package com.shubham.carrental.entities;
 public class Customer {
     private final String customerId;
     private final String customerName;
-    private final Vehicle reservedVehicle;
-    private final BookingSlot reservedBookingSlot;
-    private final Vehicle bookedVehicle;
-    private final BookingSlot bookedBookingSlot;
+    private Vehicle reservedVehicle;
+    private BookingSlot reservedBookingSlot;
+    private Vehicle bookedVehicle;
+    private BookingSlot bookedBookingSlot;
 
     public Customer(String customerId, String customerName) {
         this.customerId = customerId;
@@ -40,5 +40,17 @@ public class Customer {
 
     public Vehicle getBookedVehicle() {
         return bookedVehicle;
+    }
+
+    // Pass nulls to clear.
+    public void setReservation(Vehicle vehicle, BookingSlot bookingSlot) {
+        this.reservedVehicle = vehicle;
+        this.reservedBookingSlot = bookingSlot;
+    }
+
+    // Pass nulls to clear.
+    public void setBooking(Vehicle vehicle, BookingSlot bookingSlot) {
+        this.bookedVehicle = vehicle;
+        this.bookedBookingSlot = bookingSlot;
     }
 }

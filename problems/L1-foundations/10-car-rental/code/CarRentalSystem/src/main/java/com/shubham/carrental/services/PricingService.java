@@ -8,7 +8,7 @@ import java.util.List;
 public class PricingService {
     private final PricingStrategy pricingStrategy;
 
-    public PricingService(PricingStrategy pricingStrategy, Reservation reservation) {
+    public PricingService(PricingStrategy pricingStrategy) {
         this.pricingStrategy = pricingStrategy;
     }
 

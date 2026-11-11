@@ -1,9 +1,12 @@
 package com.shubham.carrental.entities;
 
 import com.shubham.carrental.enums.AddOns;
+import com.shubham.carrental.enums.BookingStatus;
 import com.shubham.carrental.services.PricingService;
-import com.shubham.carrental.services.PricingStrategy;
 
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,7 +15,8 @@ public class Reservation {
     private final Customer customer;
     private final Branch branch;
     private final Vehicle vehicle;
-    private final BookingSlot bookingSlot;
+    private BookingSlot bookingSlot;
+    private BookingStatus status;
     private final List<AddOns> addOns;
     private int extraDaysAdded;
 
@@ -24,6 +28,7 @@ public class Reservation {
         this.branch = branch;
         this.vehicle = vehicle;
         this.bookingSlot = bookingSlot;
+        this.status = BookingStatus.NOT_BOOKED;
         this.addOns = new ArrayList<>();
         this.extraDaysAdded = 0;
         this.pricingService = pricingService;
@@ -61,16 +66,38 @@ public class Reservation {
         this.vehicle.markVehicleAsDamaged();
     }
 
-    public void bookVehicle() {
-        this.vehicle.bookVehicle(this.bookingSlot);
+    public BookingStatus getStatus() {
+        return status;
     }
 
-    public void reserveVehicle() {
-        this.vehicle.reserveBooking(this.bookingSlot);
+    public boolean bookVehicle() {
+        boolean booked = this.vehicle.bookVehicle(this.bookingSlot);
+        if (booked) {
+            this.status = BookingStatus.BOOKED;
+        }
+        return booked;
+    }
+
+    public boolean reserveVehicle() {
+        boolean reserved = this.vehicle.reserveBooking(this.bookingSlot);
+        if (reserved) {
+            this.status = BookingStatus.RESERVED;
+        }
+        return reserved;
+    }
+
+    // Returns false (and keeps the current slot) if the vehicle is not free for the new dates.
+    public boolean modifyBookingSlot(BookingSlot newBookingSlot) {
+        if (!this.vehicle.rescheduleBooking(this.bookingSlot, newBookingSlot)) {
+            return false;
+        }
+        this.bookingSlot = newBookingSlot;
+        return true;
     }
 
     public void cancelReservation() {
         this.vehicle.cancelBooking(this.bookingSlot);
+        this.status = BookingStatus.NOT_BOOKED;
     }
 
     public double calculatePrice() {
@@ -78,14 +105,16 @@ public class Reservation {
     }
 
     public int getBookingDays() {
-        long diffInMillis = bookingSlot.endDate().getTime()
-                - bookingSlot.startDate().getTime();
+        // Count calendar days in the local zone (a 23h/25h DST day is still one day); any partial day counts as a full day.
+        ZonedDateTime start = bookingSlot.startDate().toInstant().atZone(ZoneId.systemDefault());
+        ZonedDateTime end = bookingSlot.endDate().toInstant().atZone(ZoneId.systemDefault());
 
-        int days = (int) Math.ceil(
-                diffInMillis / (1000.0 * 60 * 60 * 24)
-        );
+        long days = ChronoUnit.DAYS.between(start, end);
+        if (start.plusDays(days).isBefore(end)) {
+            days++;
+        }
 
-        return days + extraDaysAdded;
+        return (int) days + extraDaysAdded;
     }
 
     public int getExtraDaysAdded() {

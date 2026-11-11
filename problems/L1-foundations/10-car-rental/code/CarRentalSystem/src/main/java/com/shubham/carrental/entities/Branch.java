@@ -1,10 +1,11 @@
 package com.shubham.carrental.entities;
 
+import com.shubham.carrental.enums.VehicleStatus;
 import com.shubham.carrental.enums.VehicleType;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class Branch {
@@ -22,8 +23,9 @@ public class Branch {
         this.vehicles = new CopyOnWriteArrayList<>(vehicles);
         this.customers = new CopyOnWriteArrayList<>(customers);
 
-        this.vehicleByPlate = new HashMap<>();
-        this.vehicleByType = new HashMap<>();
+        this.vehicleByPlate = new ConcurrentHashMap<>();
+        this.vehicleByType = new ConcurrentHashMap<>();
+        this.vehicles.forEach(this::indexVehicle);
     }
 
     public String getBranchId() {
@@ -47,16 +49,28 @@ public class Branch {
     }
 
     public List<Vehicle> searchVehicleByType(VehicleType vehicleType) {
-        return vehicleByType.get(vehicleType);
+        return vehicleByType.getOrDefault(vehicleType, List.of());
+    }
+
+    // Vehicles of this type at this branch that are free for the whole date range and not damaged.
+    public List<Vehicle> searchAvailableVehicles(VehicleType vehicleType, BookingSlot bookingSlot) {
+        return searchVehicleByType(vehicleType).stream()
+                .filter(vehicle -> vehicle.getVehicleStatus() != VehicleStatus.DAMAGED)
+                .filter(vehicle -> vehicle.isBookingAvailable(bookingSlot))
+                .toList();
     }
 
     public void addVehicle(Vehicle vehicle) {
         vehicles.add(vehicle);
-        vehicleByPlate.computeIfAbsent(vehicle.getVehiclePlate(), k -> vehicle);
-        vehicleByType.computeIfAbsent(vehicle.getType(), k -> List.of(vehicle));
+        indexVehicle(vehicle);
     }
 
     public void addCustomer(Customer customer) {
         customers.add(customer);
+    }
+
+    private void indexVehicle(Vehicle vehicle) {
+        vehicleByPlate.put(vehicle.getVehiclePlate(), vehicle);
+        vehicleByType.computeIfAbsent(vehicle.getType(), k -> new CopyOnWriteArrayList<>()).add(vehicle);
     }
 }

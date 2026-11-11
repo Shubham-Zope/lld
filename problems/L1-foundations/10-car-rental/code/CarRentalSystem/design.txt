@@ -1,0 +1,198 @@
+=====================================================================
+CAR RENTAL SYSTEM - LLD
+=====================================================================
+
+---------------------------------------------------------------------
+1. Entities
+---------------------------------------------------------------------
+
+Branch
+Vehicle
+Customer
+Reservation
+BookingSlot
+
+Enums:
+VehicleType    : CAR, TRUCK, BIKE, SCOOTER, BUS
+                 each carries dailyPrice, extraDaysFine, damagedFine
+VehicleStatus  : AVAILABLE, NOT_AVAILABLE, DAMAGED
+BookingStatus  : NOT_BOOKED, RESERVED, BOOKED, DELIVERED_TO_CUSTOMER,
+                 RETURNED, DELAYED, NO_CAR_AVAILABLE_FOR_PICK_UP
+AddOns         : GPS(100), INSURANCE(250)
+
+---------------------------------------------------------------------
+2. Responsibilities
+---------------------------------------------------------------------
+
+BookingSlot (record, immutable):
+    startDate, endDate (java.util.Date).
+    Treated as half-open [start, end): a slot ending Dec 4 does not clash
+    with one starting Dec 4.
+
+Vehicle:
+    vehicleId, vehiclePlate, vehicleType, vehicleStatus, bookingStatus,
+    List<BookingSlot> bookingSlots.
+    Vehicle owns its own calendar. Only Vehicle can add / move / remove a
+    slot, so double reservation is impossible by design.
+      isBookingAvailable(slot)        -> no existing slot overlaps
+                                         (a.start < b.end && b.start < a.end)
+      reserveBooking(slot)            -> check + add atomically, false if clash
+      rescheduleBooking(old, new)     -> move slot, keep old one if new clashes
+      cancelBooking(slot)             -> remove slot
+      bookVehicle(slot)               -> pick-up: vehicle leaves the branch
+                                         (status NOT_AVAILABLE)
+      markVehicleAsAvailable() / markVehicleAsDamaged()
+    Rates (daily, extra-day fine, damage fine) come from VehicleType.
+    vehicleStatus = physical state of the car (on the lot / out / damaged).
+    Reserving future dates does NOT change it - only pick-up does.
+
+Branch:
+    branchId, branchName, List<Vehicle>, List<Customer>,
+    Map<plate, Vehicle>, Map<VehicleType, List<Vehicle>> (ConcurrentHashMap).
+      searchVehicleByPlate(plate)
+      searchVehicleByType(type)
+      searchAvailableVehicles(type, slot) -> vehicles of that type at this
+                                              branch, not DAMAGED, free for
+                                              the whole slot
+      addVehicle(vehicle), addCustomer(customer)
+
+Customer:
+    customerId, customerName,
+    reservedVehicle + reservedBookingSlot, bookedVehicle + bookedBookingSlot.
+    setReservation(...) / setBooking(...) (nulls clear them).
+
+Reservation:
+    reservationId, Customer, Branch, Vehicle, BookingSlot, status
+    (BookingStatus), List<AddOns>, extraDaysAdded, PricingService.
+      reserveVehicle()            -> vehicle.reserveBooking, status RESERVED
+      modifyBookingSlot(newSlot)  -> vehicle.rescheduleBooking
+      cancelReservation()         -> vehicle.cancelBooking, status NOT_BOOKED
+      bookVehicle()               -> pick-up, status BOOKED
+      vehicleIsDamaged()          -> vehicle.markVehicleAsDamaged
+      addAddOns(addOn)
+      getBookingDays()            -> calendar days of the slot (DST safe,
+                                     partial day = full day) + extraDaysAdded
+      calculatePrice()            -> pricingService.calculatePrice(this)
+
+---------------------------------------------------------------------
+3. Pricing (Strategy + Decorator)
+---------------------------------------------------------------------
+
+PricingStrategy (Strategy) - base price of the rental:
+    StandardPricingStrategy:
+        dailyRate * bookingDays
+      + extraDaysFine * extraDaysAdded               (late fee)
+      + damagedFine  (only if vehicle is DAMAGED)    (damage charge)
+    WeekendPricingStrategy:
+        same, but dailyRate part * 1.5 (fines are not surcharged)
+
+PriceCalculator (Decorator) - add-ons on top of the base price:
+    BasePrice(basePrice)
+    GPSPriceCalculator(inner)        -> inner + 100
+    InsurancePriceCalculator(inner)  -> inner + 250
+
+PricingService(strategy):
+    calculatePrice(reservation):
+      1. base = strategy.calculatePrice(reservation)
+      2. calculator = new BasePrice(base)
+      3. for each add-on: wrap calculator in its decorator
+      4. return calculator.calculate()
+
+Late days: bookingDays already includes extraDaysAdded, so each late day
+costs dailyRate + extraDaysFine.
+
+Extensible: new rule = new PricingStrategy; new add-on = new
+PriceCalculator decorator + one case in PricingService.
+
+---------------------------------------------------------------------
+4. Flows
+---------------------------------------------------------------------
+
+Search:
+    branch.searchAvailableVehicles(type, slot)
+
+Reserve:
+    1. vehicles = branch.searchAvailableVehicles(type, slot)
+    2. pick one, create Reservation(..., pricingService)
+    3. reservation.reserveVehicle()
+         true  -> customer.setReservation(vehicle, slot), add add-ons
+         false -> someone took it in between, try the next vehicle
+    4. none left -> no availability
+
+Modify:
+    reservation.modifyBookingSlot(newSlot) -> false keeps the old dates.
+
+Cancel:
+    reservation.cancelReservation(), customer.setReservation(null, null)
+
+Pick-up:
+    reservation.bookVehicle() -> customer.setBooking(vehicle, slot)
+
+Return:
+    1. late?    reservation.setExtraDaysAdded(lateDays)
+    2. damaged? reservation.vehicleIsDamaged()   (BEFORE pricing, the
+                                                  damage fine reads status)
+    3. price = reservation.calculatePrice()
+    4. vehicle.cancelBooking(slot); if not damaged markVehicleAsAvailable()
+    5. customer.setBooking(null, null)
+
+---------------------------------------------------------------------
+5. Concurrency (NFR: no double reservation)
+---------------------------------------------------------------------
+
+- Every Vehicle method that reads or changes bookingSlots / status is
+  synchronized on the vehicle. Check-and-add (reserveBooking,
+  rescheduleBooking, bookVehicle) run under that one lock, so two
+  customers racing for the same car and overlapping dates -> only one
+  wins, the other gets false.
+- Lock is per vehicle -> no global lock, contention only on the same car.
+- Branch maps are ConcurrentHashMap, vehicle / customer lists are
+  CopyOnWriteArrayList (read-heavy, rarely written).
+
+---------------------------------------------------------------------
+6. Edge cases
+---------------------------------------------------------------------
+
+Handled:
+- Overlapping or partially overlapping dates -> rejected by Vehicle.
+- Back-to-back bookings (end == next start) -> allowed (half-open slot).
+- Modify to dates that clash -> old booking kept.
+- Damaged vehicle -> excluded from search, damage fine added to the bill.
+- Late return -> extraDaysAdded (daily rate + fine per late day).
+- 23h / 25h DST days counted as one day.
+
+---------------------------------------------------------------------
+7. Patterns used
+---------------------------------------------------------------------
+
+Strategy  : PricingStrategy (Standard, Weekend)
+Decorator : PriceCalculator (BasePrice, GPS, Insurance)
+
+---------------------------------------------------------------------
+8. Not yet implemented
+---------------------------------------------------------------------
+
+Requirements:
+- Customer licence (number + expiry) and the "licence expires before trip
+  end" check.
+- Branch registry (up to 200 branches) and search across branches.
+- Reservation service: reserve returning Reservation | NoAvailability,
+  plus modify / cancel / pick-up / return as one API (flows in section 4
+  are done by hand today).
+- One-way return: return branch on Reservation, one-way fee, moving the
+  vehicle to the return branch.
+- CHILD_SEAT add-on (enum value, decorator, PricingService case).
+- Return earlier than booked (bill actual days, free remaining days).
+- Vehicle unavailable at pick-up -> upgrade to another / bigger vehicle.
+- Choosing Weekend vs Standard strategy from the dates (caller picks today).
+
+Patterns:
+- State   : reservation lifecycle (RESERVED -> PICKED_UP -> RETURNED /
+            CANCELLED). Today Reservation.status is set directly and
+            BookingStatus values DELIVERED_TO_CUSTOMER, RETURNED, DELAYED,
+            NO_CAR_AVAILABLE_FOR_PICK_UP are unused.
+- Factory : creating pricing strategy / add-on decorators / vehicles.
+
+Follow-ups:
+- Loyalty tiers (discount decorator on the bill).
+- Fleet maintenance scheduling (block vehicle dates for service / repair).

@@ -36,7 +36,7 @@ public class Vehicle {
     return vehicleType;
   }
 
-  public VehicleStatus getVehicleStatus() {
+  public synchronized VehicleStatus getVehicleStatus() {
       return vehicleStatus;
   }
 
@@ -52,51 +52,75 @@ public class Vehicle {
       return vehicleType.damagedFine;
   }
 
-  public List<BookingSlot> getBookingSlots() {
+  public synchronized List<BookingSlot> getBookingSlots() {
     return List.copyOf(bookingSlots);
   }
 
-  public boolean isBookingAvailable(BookingSlot otherBookingSlot) {
+  // Two slots overlap when each one starts before the other ends.
+  public synchronized boolean isBookingAvailable(BookingSlot otherBookingSlot) {
       if (otherBookingSlot == null) {
           return false;
       }
       return bookingSlots.stream().noneMatch(existingSlot ->
-              !otherBookingSlot.startDate().after(existingSlot.startDate())
-                      && !otherBookingSlot.endDate().before(existingSlot.endDate())
+              otherBookingSlot.startDate().before(existingSlot.endDate())
+                      && existingSlot.startDate().before(otherBookingSlot.endDate())
       );
   }
 
-  public boolean isBooked() {
+  public synchronized boolean isBooked() {
     return bookingStatus == BookingStatus.BOOKED;
   }
 
-  public boolean isReserved() {
+  public synchronized boolean isReserved() {
       return bookingStatus == BookingStatus.RESERVED;
   }
 
-  public void bookVehicle(BookingSlot bookingSlot) {
-      bookingSlots.add(bookingSlot);
+  // Pick-up: vehicle leaves with the customer. Returns false if the slot clashes with another booking.
+  public synchronized boolean bookVehicle(BookingSlot bookingSlot) {
+      if (!bookingSlots.contains(bookingSlot)) {
+          if (!isBookingAvailable(bookingSlot)) {
+              return false;
+          }
+          bookingSlots.add(bookingSlot);
+      }
       vehicleStatus = VehicleStatus.NOT_AVAILABLE;
       bookingStatus = BookingStatus.BOOKED;
+      return true;
   }
 
-  public void reserveBooking(BookingSlot bookingSlot) {
+  // Check and add happen under one lock, so two reservations can never take overlapping slots.
+  public synchronized boolean reserveBooking(BookingSlot bookingSlot) {
+    if (!isBookingAvailable(bookingSlot)) {
+      return false;
+    }
     bookingSlots.add(bookingSlot);
-    vehicleStatus = VehicleStatus.NOT_AVAILABLE;
     bookingStatus = BookingStatus.RESERVED;
+    return true;
   }
 
-  public void cancelBooking(BookingSlot bookingSlot) {
+  // Moves a booking to a new slot; keeps the old slot if the new one is not free.
+  public synchronized boolean rescheduleBooking(BookingSlot oldSlot, BookingSlot newSlot) {
+    if (!bookingSlots.remove(oldSlot)) {
+      return false;
+    }
+    if (!isBookingAvailable(newSlot)) {
+      bookingSlots.add(oldSlot);
+      return false;
+    }
+    bookingSlots.add(newSlot);
+    return true;
+  }
+
+  public synchronized void cancelBooking(BookingSlot bookingSlot) {
     bookingSlots.remove(bookingSlot);
-    vehicleStatus = VehicleStatus.AVAILABLE;
-    bookingStatus = BookingStatus.NOT_BOOKED;
+    bookingStatus = bookingSlots.isEmpty() ? BookingStatus.NOT_BOOKED : BookingStatus.RESERVED;
   }
 
-  public void markVehicleAsAvailable() {
+  public synchronized void markVehicleAsAvailable() {
       vehicleStatus = VehicleStatus.AVAILABLE;
   }
 
-  public void markVehicleAsDamaged() {
+  public synchronized void markVehicleAsDamaged() {
       vehicleStatus = VehicleStatus.DAMAGED;
   }
 
